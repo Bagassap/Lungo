@@ -1,0 +1,248 @@
+### ============================================================
+### LUNGO API - HTTP Test File (REST Client / JetBrains HTTP Client)
+### Base URL: http://localhost:3000
+### ============================================================
+
+### ── HEALTH ──────────────────────────────────────────────────
+
+### Health Check
+GET http://localhost:3000/health
+
+###
+
+### ── AUTH ────────────────────────────────────────────────────
+
+### Register Passenger
+POST http://localhost:3000/auth/register
+Content-Type: application/json
+
+{
+  "phone": "08123456789",
+  "name": "Test User",
+  "role": "PASSENGER"
+}
+
+###
+
+### Register Driver
+POST http://localhost:3000/auth/register
+Content-Type: application/json
+
+{
+  "phone": "08987654321",
+  "name": "Test Driver",
+  "role": "DRIVER"
+}
+
+###
+
+### Login (Request OTP)
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+  "phone": "08123456789"
+}
+
+###
+
+### Verify OTP → returns accessToken + refreshToken
+# Ganti otp dengan nilai yang dikembalikan dari register/login
+POST http://localhost:3000/auth/verify-otp
+Content-Type: application/json
+
+{
+  "phone": "08123456789",
+  "otp": "123456"
+}
+
+###
+
+### Refresh Access Token
+POST http://localhost:3000/auth/refresh
+Content-Type: application/json
+
+{
+  "userId": "paste-user-id-here",
+  "refreshToken": "paste-refresh-token-here"
+}
+
+###
+
+### Logout (butuh Bearer token)
+POST http://localhost:3000/auth/logout
+Authorization: Bearer paste-access-token-here
+
+###
+
+### ── USERS ────────────────────────────────────────────────────
+
+### Get User Profile (butuh Bearer token)
+GET http://localhost:3000/users/profile
+Authorization: Bearer paste-access-token-here
+
+###
+
+### Update User Profile (butuh Bearer token)
+PUT http://localhost:3000/users/profile
+Content-Type: application/json
+Authorization: Bearer paste-access-token-here
+
+{
+  "name": "Nama Baru"
+}
+
+###
+
+### Riwayat Perjalanan Penumpang (butuh Bearer token)
+GET http://localhost:3000/users/history
+Authorization: Bearer paste-access-token-here
+
+###
+
+### ── DRIVERS ──────────────────────────────────────────────────
+
+### Get Driver Profile (butuh Bearer token driver)
+GET http://localhost:3000/drivers/profile
+Authorization: Bearer paste-driver-access-token-here
+
+###
+
+### Update Driver Profile (butuh Bearer token driver)
+PUT http://localhost:3000/drivers/profile
+Content-Type: application/json
+Authorization: Bearer paste-driver-access-token-here
+
+{
+  "vehiclePlate": "B 1234 ABC",
+  "vehicleType": "Motor",
+  "fcmToken": "fcm-token-device"
+}
+
+###
+
+### Toggle Online (butuh Bearer token driver)
+POST http://localhost:3000/drivers/toggle-online
+Content-Type: application/json
+Authorization: Bearer paste-driver-access-token-here
+
+{
+  "isOnline": true,
+  "latitude": -6.9175,
+  "longitude": 107.6191
+}
+
+###
+
+### Upload Dokumen (butuh Bearer token driver)
+POST http://localhost:3000/drivers/upload-document
+Content-Type: application/json
+Authorization: Bearer paste-driver-access-token-here
+
+{
+  "type": "ktp",
+  "fileUrl": "https://storage.supabase.co/lungo/ktp/driver-001.jpg"
+}
+
+###
+
+### Driver Stats (butuh Bearer token driver)
+GET http://localhost:3000/drivers/stats
+Authorization: Bearer paste-driver-access-token-here
+
+###
+
+### ── TRACKING ─────────────────────────────────────────────────
+
+### Get Nearby Drivers (Bandung Pusat)
+GET http://localhost:3000/tracking/drivers/nearby?lat=-6.9175&lng=107.6191&radius=3
+
+###
+
+### Get Nearby Drivers (Jakarta)
+GET http://localhost:3000/tracking/drivers/nearby?lat=-6.2088&lng=106.8456&radius=5
+
+###
+
+### ── BOOKING ──────────────────────────────────────────────────
+
+### Create Ride (Bandung)
+POST http://localhost:3000/booking/rides
+Content-Type: application/json
+
+{
+  "passengerId": "paste-passenger-id-here",
+  "originLat": -6.9175,
+  "originLng": 107.6191,
+  "destinationLat": -6.9200,
+  "destinationLng": 107.6300
+}
+
+###
+
+### Get Ride Detail
+GET http://localhost:3000/booking/rides/paste-ride-id-here
+
+###
+
+### Driver Accept Ride
+POST http://localhost:3000/booking/rides/paste-ride-id-here/accept
+Content-Type: application/json
+
+{
+  "driverId": "paste-driver-user-id-here"
+}
+
+###
+
+### Update Status → PICKUP
+PATCH http://localhost:3000/booking/rides/paste-ride-id-here/status
+Content-Type: application/json
+
+{
+  "status": "PICKUP"
+}
+
+###
+
+### Update Status → ONGOING
+PATCH http://localhost:3000/booking/rides/paste-ride-id-here/status
+Content-Type: application/json
+
+{
+  "status": "ONGOING"
+}
+
+###
+
+### Complete Ride (hitung tarif otomatis)
+POST http://localhost:3000/booking/rides/paste-ride-id-here/complete
+
+###
+
+### Cancel Ride
+POST http://localhost:3000/booking/rides/paste-ride-id-here/cancel
+
+###
+
+### ── TARIFF ───────────────────────────────────────────────────
+
+### Info Tarif
+GET http://localhost:3000/tariff/info
+
+###
+
+### Hitung Tarif 5 km → Rp 14.000 (minimum)
+GET http://localhost:3000/tariff/calculate?distance=5
+
+###
+
+### Hitung Tarif 10 km → Rp 21.000
+GET http://localhost:3000/tariff/calculate?distance=10
+
+###
+
+### Hitung Tarif 20 km → Rp 42.000
+GET http://localhost:3000/tariff/calculate?distance=20
+
+###

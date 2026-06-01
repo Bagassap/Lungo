@@ -1,0 +1,64 @@
+name: lungo_app
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.2.0+2
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  dio: ^5.4.0
+  retrofit: ^4.1.0
+  flutter_riverpod: ^2.5.1
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.0
+  socket_io_client: ^2.0.3+1
+  flutter_secure_storage: ^9.0.0
+  shared_preferences: ^2.2.3
+  firebase_core: ^3.3.0
+  firebase_messaging: ^15.1.0
+  google_fonts: ^6.2.1
+  flutter_svg: ^2.0.10+1
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
+  geolocator: ^12.0.0
+  permission_handler: ^11.3.1
+  url_launcher: ^6.3.0
+  collection: ^1.18.0
+  intl: ^0.20.2
+  uuid: ^4.4.0
+  image_picker: ^1.0.7
+  qr_flutter: ^4.1.0
+  safe_device: ^1.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  fonts:
+    - family: Satoshi
+      fonts:
+        - asset: assets/fonts/Satoshi-Light.ttf
+          weight: 300
+        - asset: assets/fonts/Satoshi-Variable.ttf
+          weight: 400
+        - asset: assets/fonts/Satoshi-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Satoshi-Black.ttf
+          weight: 900
+
+  assets:
+    - assets/fonts/
+    - assets/images/

@@ -1,0 +1,84 @@
+workflows:
+
+  # ─── iOS Release Build ───────────────────────────────────────────────────────
+  ios-release:
+    name: Lungo iOS Release (IPA)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - app_store_credentials   # APP_STORE_CONNECT_ISSUER_ID, KEY_ID, PRIVATE_KEY
+        - certificate_credentials # CERTIFICATE_PRIVATE_KEY
+      vars:
+        BUNDLE_ID: "com.lungo.app"
+        APP_STORE_APPLE_ID: "YOUR_APP_APPLE_ID"  # ganti setelah daftar di App Store Connect
+
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+
+      - name: Pod install
+        script: |
+          cd ios
+          pod install
+
+      - name: Build IPA
+        script: |
+          flutter build ipa \
+            --release \
+            --export-options-plist=/Users/builder/export_options.plist
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        expire_build_submitted_for_review: true
+
+  # ─── Android Release Build ───────────────────────────────────────────────────
+  android-release:
+    name: Lungo Android Release (APK + AAB)
+    max_build_duration: 45
+    instance_type: linux_x2
+
+    environment:
+      flutter: stable
+      groups:
+        - keystore_credentials    # CM_KEYSTORE, CM_KEY_ALIAS, CM_KEY_PASSWORD, CM_STORE_PASSWORD
+
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+
+      - name: Set up keystore
+        script: |
+          echo $CM_KEYSTORE | base64 --decode > /tmp/lungo-release.jks
+          cat >> android/key.properties <<EOF
+          storePassword=$CM_STORE_PASSWORD
+          keyPassword=$CM_KEY_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          storeFile=/tmp/lungo-release.jks
+          EOF
+
+      - name: Build APK
+        script: flutter build apk --release
+
+      - name: Build AAB (Play Store)
+        script: flutter build appbundle --release
+
+    artifacts:
+      - build/app/outputs/apk/release/app-release.apk
+      - build/app/outputs/bundle/release/app-release.aab
+
+    publishing:
+      google_play:
+        credentials: $GOOGLE_PLAY_CREDENTIALS
+        track: internal
+        submit_as_draft: true

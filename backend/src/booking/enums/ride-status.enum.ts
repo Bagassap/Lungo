@@ -1,0 +1,8 @@
+export enum RideStatus {
+  SEARCHING = 'SEARCHING',
+  ACCEPTED = 'ACCEPTED',
+  PICKUP = 'PICKUP',
+  ONGOING = 'ONGOING',
+  DONE = 'DONE',
+  CANCELLED = 'CANCELLED',
+}

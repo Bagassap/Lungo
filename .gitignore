@@ -1,0 +1,31 @@
+node_modules/
+dist/
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+backend/.env
+deploy/.env.production
+backend/firebase-service-account.json
+android/key.properties
+*.jks
+*.log
+.DS_Store
+Thumbs.db
+release/*.apk
+release/*.aab
+.vscode/settings.json
+
+# Deployment scripts with credentials
+deploy/_redeploy.py
+deploy/*.py
+
+# Environment files
+.env
+.env.local
+.env.development
+
+# Secrets
+firebase-service-account.json
+*.key
+*.pem
