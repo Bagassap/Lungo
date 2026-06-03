@@ -27,7 +27,7 @@ export class UsersService {
 
   async updateFcmToken(userId: string, token: string): Promise<void> {
     await this.userRepo.update(userId, { fcmToken: token });
-    // If user is a driver, sync token to Driver entity as well
+
     const user = await this.userRepo.findOne({ where: { id: userId }, select: ['role'] });
     if (user?.role === UserRole.DRIVER) {
       await this.driverRepo.update({ userId }, { fcmToken: token });

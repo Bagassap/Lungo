@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 
-// ─── colors ───────────────────────────────────────────────────────────────────
 class _C {
   static const primary   = AppColors.primaryColor;
   static const dark      = AppColors.primaryDark;
@@ -18,9 +17,6 @@ class _C {
   static const readBlue  = Color(0xFF53BDEB);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  CHAT LIST SCREEN  (WhatsApp-style)
-// ═══════════════════════════════════════════════════════════════════════════
 class AdminChatScreen extends StatefulWidget {
   const AdminChatScreen({super.key});
 
@@ -418,9 +414,6 @@ class _ChatTile extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  CHAT DETAIL SCREEN  (monitor view)
-// ═══════════════════════════════════════════════════════════════════════════
 class _AdminChatDetailScreen extends StatefulWidget {
   final _ChatSession session;
   const _AdminChatDetailScreen({required this.session});
@@ -789,7 +782,6 @@ class _ReadOnlyBar extends StatelessWidget {
   }
 }
 
-// ─── data classes ─────────────────────────────────────────────────────────────
 class _ChatSession {
   final String rideId, passenger, driver, lastMsg, time;
   final int unread;

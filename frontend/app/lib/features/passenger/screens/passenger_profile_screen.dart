@@ -393,7 +393,6 @@ class _PassengerProfileScreenState
       return;
     }
 
-    // Try direct role-switch first — works if driver account already exists
     try {
       final response = await DioClient.create().post('/auth/select-role', data: {
         'phone': phone,
@@ -420,7 +419,7 @@ class _PassengerProfileScreenState
       if (!mounted) return;
       final isNotFound = e.toString().contains('404') || e.toString().contains('tidak ditemukan');
       if (isNotFound) {
-        // No driver account — go through full driver registration
+
         Navigator.pushNamed(context, '/driver-register');
       } else {
         LungoSnackbar.error(context, 'Gagal beralih mode. Coba lagi.');

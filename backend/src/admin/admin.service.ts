@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, In } from 'typeorm';
+import { Repository, Between, In, MoreThanOrEqual } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { FirebaseService } from '../firebase/firebase.service';
 import { User, UserRole } from '../users/entities/user.entity';
@@ -62,7 +62,7 @@ export class AdminService {
     const [totalUsers, totalDrivers, activeTrips, totalRides, onlineDrivers, pendingVerifications, unreadNotifications] =
       await Promise.all([
         this.userRepo.count({ where: { role: UserRole.PASSENGER } }),
-        this.driverRepo.count({ where: { registrationStatus: 'APPROVED' } }),
+        this.driverRepo.count(),
         this.rideRepo.count({ where: { status: In(activeStatuses) } }),
         this.rideRepo.count({ where: { status: RideStatus.DONE } }),
         this.driverRepo.count({ where: { isOnline: true } }),
@@ -102,8 +102,6 @@ export class AdminService {
       unreadNotifications,
     };
   }
-
-  // ── Admin Notifications ──────────────────────────────────────────────────
 
   async createNotification(type: string, title: string, body: string, targetId?: string) {
     await this.notifRepo.save(
@@ -301,7 +299,7 @@ export class AdminService {
   }
 
   async getDriverReport(driverRecordId: string) {
-    // driverRecordId = UUID of the drivers table row (consistent with verifyDriver)
+
     const driver = await this.driverRepo.findOne({ where: { id: driverRecordId } });
     if (!driver) throw new NotFoundException('Driver not found');
     const user = await this.userRepo.findOne({ where: { id: driver.userId } });
@@ -341,6 +339,213 @@ export class AdminService {
       weeklyReports: weeks,
       recentRides,
     };
+  }
+
+  async getActiveTrips() {
+    const activeStatuses = [RideStatus.SEARCHING, RideStatus.ACCEPTED, RideStatus.PICKUP, RideStatus.ONGOING];
+    const rides = await this.rideRepo.find({
+      where: { status: In(activeStatuses) },
+      order: { createdAt: 'DESC' },
+    });
+
+    const isUuid = (v: unknown) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+    const pIds = [...new Set(rides.map((r) => r.passengerId).filter(isUuid))];
+    const dIds = [...new Set(rides.map((r) => r.driverId).filter(isUuid))] as string[];
+    const allIds = [...new Set([...pIds, ...dIds])];
+    const users = allIds.length
+      ? await this.userRepo.createQueryBuilder('u').where('u.id IN (:...ids)', { ids: allIds }).getMany()
+      : [];
+    const uMap = Object.fromEntries(users.map((u) => [u.id, u]));
+
+    return rides.map((r) => ({
+      id: r.id,
+      passengerName: uMap[r.passengerId]?.name ?? '-',
+      driverName: r.driverId ? (uMap[r.driverId]?.name ?? '-') : '-',
+      originAddress: r.originAddress,
+      destinationAddress: r.destinationAddress,
+      fare: r.fare,
+      status: r.status,
+      createdAt: r.createdAt,
+    }));
+  }
+
+  async getRevenueChart() {
+    const now = new Date();
+    const result: { day: string; date: string; revenue: number; tripCount: number }[] = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const start = new Date(d); start.setHours(0, 0, 0, 0);
+      const end   = new Date(d); end.setHours(23, 59, 59, 999);
+
+      const row = await this.rideRepo
+        .createQueryBuilder('r')
+        .select('SUM(r.fare)', 'revenue')
+        .addSelect('COUNT(r.id)', 'rides')
+        .where('r.status = :s', { s: RideStatus.DONE })
+        .andWhere('r.updatedAt >= :start', { start })
+        .andWhere('r.updatedAt <= :end',   { end })
+        .getRawOne();
+
+      const dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+      result.push({
+        day:       dayNames[start.getDay()],
+        date:      start.toISOString().split('T')[0],
+        revenue:   parseFloat(row?.revenue ?? '0') || 0,
+        tripCount: parseInt(row?.rides    ?? '0') || 0,
+      });
+    }
+
+    const prevStart = new Date(now); prevStart.setDate(prevStart.getDate() - 14); prevStart.setHours(0, 0, 0, 0);
+    const prevEnd   = new Date(now); prevEnd.setDate(prevEnd.getDate() - 7);      prevEnd.setHours(23, 59, 59, 999);
+    const prevRow   = await this.rideRepo
+      .createQueryBuilder('r')
+      .select('SUM(r.fare)', 'total')
+      .where('r.status = :s', { s: RideStatus.DONE })
+      .andWhere('r.updatedAt >= :start', { start: prevStart })
+      .andWhere('r.updatedAt <= :end',   { end: prevEnd })
+      .getRawOne();
+
+    const thisWeek = result.reduce((s, r) => s + r.revenue, 0);
+    const prevWeek = parseFloat(prevRow?.total ?? '0') || 0;
+    const growth   = prevWeek > 0
+      ? parseFloat(((thisWeek - prevWeek) / prevWeek * 100).toFixed(1))
+      : (thisWeek > 0 ? 100 : 0);
+
+    return { days: result, growth };
+  }
+
+  async getRevenue(period = 'month') {
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date | undefined;
+
+    switch (period) {
+      case 'today':
+        startDate = new Date(now);
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'week':
+        startDate = this._daysAgo(7);
+        break;
+      case 'last_month': {
+        const y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+        const m = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+        startDate = new Date(y, m, 1, 0, 0, 0, 0);
+        endDate   = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        break;
+      }
+      case 'month':
+      default:
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    }
+
+    const qb = this.rideRepo.createQueryBuilder('r')
+      .where('r.status = :s', { s: RideStatus.DONE });
+    if (endDate) {
+      qb.andWhere('r.updatedAt BETWEEN :start AND :end', { start: startDate, end: endDate });
+    } else {
+      qb.andWhere('r.updatedAt >= :start', { start: startDate });
+    }
+    const doneRides = await qb.orderBy('r.updatedAt', 'DESC').getMany();
+
+    if (!doneRides.length) return [];
+
+    const isUuid = (v: unknown) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+    const driverIds = [...new Set(doneRides.map((r) => r.driverId).filter(isUuid))] as string[];
+    const pIds      = [...new Set(doneRides.map((r) => r.passengerId).filter(isUuid))];
+    const allIds    = [...new Set([...driverIds, ...pIds])];
+    const users     = allIds.length
+      ? await this.userRepo.createQueryBuilder('u').where('u.id IN (:...ids)', { ids: allIds }).getMany()
+      : [];
+    const uMap = Object.fromEntries(users.map((u) => [u.id, u]));
+
+    const byDriver: Record<string, {
+      driverId: string; driverName: string; driverPhone: string;
+      totalRevenue: number; totalTrips: number;
+      trips: { rideId: string; passengerName: string; fare: number; distanceKm: number; completedAt: string; originAddress: string; destinationAddress: string }[];
+    }> = {};
+
+    for (const r of doneRides) {
+      if (!r.driverId || !isUuid(r.driverId)) continue;
+      const dId = r.driverId;
+      if (!byDriver[dId]) {
+        byDriver[dId] = {
+          driverId: dId,
+          driverName: uMap[dId]?.name ?? '-',
+          driverPhone: uMap[dId]?.phone ?? '-',
+          totalRevenue: 0,
+          totalTrips: 0,
+          trips: [],
+        };
+      }
+      const fare = parseFloat(r.fare as any) || 0;
+      byDriver[dId].totalRevenue += fare;
+      byDriver[dId].totalTrips++;
+      const completedAt = r.updatedAt ?? r.createdAt;
+      byDriver[dId].trips.push({
+        rideId: r.id,
+        passengerName: uMap[r.passengerId]?.name ?? '-',
+        fare,
+        distanceKm: parseFloat(r.distanceKm as any) || 0,
+        completedAt: completedAt?.toISOString() ?? '',
+        originAddress: r.originAddress ?? '',
+        destinationAddress: r.destinationAddress ?? '',
+      });
+    }
+
+    return Object.values(byDriver).sort((a, b) => b.totalRevenue - a.totalRevenue);
+  }
+
+  async getTripsByDriver() {
+    const rides = await this.rideRepo
+      .createQueryBuilder('r')
+      .where('r.status != :s', { s: RideStatus.SEARCHING })
+      .orderBy('r.createdAt', 'DESC')
+      .getMany();
+
+    if (!rides.length) return [];
+
+    const isUuid = (v: unknown) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+    const pIds   = [...new Set(rides.map((r) => r.passengerId).filter(isUuid))];
+    const dIds   = [...new Set(rides.map((r) => r.driverId).filter(isUuid))] as string[];
+    const allIds = [...new Set([...pIds, ...dIds])];
+    const users  = allIds.length
+      ? await this.userRepo.createQueryBuilder('u').where('u.id IN (:...ids)', { ids: allIds }).getMany()
+      : [];
+    const uMap = Object.fromEntries(users.map((u) => [u.id, u]));
+
+    const groups: Record<string, {
+      driverId: string; driverName: string;
+      totalTrips: number; totalRevenue: number;
+      trips: { id: string; passengerName: string; originAddress: string; destinationAddress: string; status: string; fare: number; distanceKm: number; createdAt: Date; updatedAt: Date }[];
+    }> = {};
+
+    for (const r of rides) {
+      const dId   = r.driverId ?? 'no-driver';
+      const dName = r.driverId ? (uMap[r.driverId]?.name ?? 'Driver Tidak Diketahui') : 'Tanpa Driver';
+      if (!groups[dId]) {
+        groups[dId] = { driverId: dId, driverName: dName, totalTrips: 0, totalRevenue: 0, trips: [] };
+      }
+      groups[dId].totalTrips++;
+      if (r.status === RideStatus.DONE) {
+        groups[dId].totalRevenue += parseFloat(r.fare as any) || 0;
+      }
+      groups[dId].trips.push({
+        id: r.id,
+        passengerName: uMap[r.passengerId]?.name ?? '-',
+        originAddress: r.originAddress ?? '-',
+        destinationAddress: r.destinationAddress ?? '-',
+        status: r.status,
+        fare: parseFloat(r.fare as any) || 0,
+        distanceKm: parseFloat(r.distanceKm as any) || 0,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      });
+    }
+
+    return Object.values(groups).sort((a, b) => b.totalTrips - a.totalTrips);
   }
 
   async getTrips(status?: string, page = 1, limit = 20) {
@@ -479,6 +684,60 @@ export class AdminService {
         : null,
     ]);
     return { ...ride, passenger, driver };
+  }
+
+  async getWeeklyReport() {
+    const now   = new Date();
+    const start = new Date(now);
+    start.setDate(now.getDate() - 7);
+    start.setHours(0, 0, 0, 0);
+
+    const rides = await this.rideRepo
+      .createQueryBuilder('r')
+      .where('r.createdAt >= :start', { start })
+      .orderBy('r.createdAt', 'DESC')
+      .getMany();
+
+    if (!rides.length) return {
+      period: { start: start.toISOString(), end: now.toISOString() },
+      summary: { totalTrips: 0, completedTrips: 0, cancelledTrips: 0, totalRevenue: 0, completionRate: 0 },
+      trips: [],
+    };
+
+    const isUuid = (v: unknown) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+    const pIds   = [...new Set(rides.map(r => r.passengerId).filter(isUuid))];
+    const dIds   = [...new Set(rides.map(r => r.driverId).filter(isUuid))] as string[];
+    const allIds = [...new Set([...pIds, ...dIds])];
+    const users  = allIds.length
+      ? await this.userRepo.createQueryBuilder('u').where('u.id IN (:...ids)', { ids: allIds }).getMany()
+      : [];
+    const uMap = Object.fromEntries(users.map(u => [u.id, u]));
+
+    const done      = rides.filter(r => r.status === RideStatus.DONE);
+    const cancelled = rides.filter(r => r.status === RideStatus.CANCELLED);
+    const totalRevenue = done.reduce((s, r) => s + (parseFloat(r.fare as any) || 0), 0);
+
+    return {
+      period: { start: start.toISOString(), end: now.toISOString() },
+      summary: {
+        totalTrips:     rides.length,
+        completedTrips: done.length,
+        cancelledTrips: cancelled.length,
+        totalRevenue,
+        completionRate: rides.length > 0 ? Math.round(done.length / rides.length * 100) : 0,
+      },
+      trips: rides.map(r => ({
+        id:                 r.id,
+        passengerName:      uMap[r.passengerId]?.name ?? '-',
+        driverName:         r.driverId ? (uMap[r.driverId]?.name ?? '-') : '-',
+        originAddress:      r.originAddress ?? '-',
+        destinationAddress: r.destinationAddress ?? '-',
+        status:             r.status,
+        fare:               parseFloat(r.fare as any) || 0,
+        distanceKm:         parseFloat(r.distanceKm as any) || 0,
+        createdAt:          r.createdAt,
+      })),
+    };
   }
 
   async getWeeklyReports(driverId?: string, page = 1, limit = 20) {

@@ -161,7 +161,6 @@ export class BookingService {
     if (dto.driverId) ride.driverId = dto.driverId;
     const saved = await this.rideRepo.save(ride);
 
-    // Broadcast status change to passenger via ride room WebSocket
     this.trackingGateway.notifyRideStatusChanged(saved.id, dto.status);
 
     if (dto.status === RideStatus.PICKUP) {
@@ -227,7 +226,7 @@ export class BookingService {
           `Pendapatan trip — Rp ${fare.toLocaleString('id-ID')}`,
           ride.id,
         );
-      } catch (_) { /* jangan gagalkan completeRide jika wallet error */ }
+      } catch (_) {  }
 
       this.notifRepo.save(this.notifRepo.create({
         userId: ride.driverId,
@@ -258,7 +257,6 @@ export class BookingService {
       );
     }
 
-    // Coba debit saldo penumpang jika cukup (bayar digital)
     try {
       const passengerBalance = await this.walletService.getBalance(ride.passengerId);
       if (passengerBalance.balance >= fare) {
@@ -269,7 +267,7 @@ export class BookingService {
           ride.id,
         );
       }
-    } catch (_) { /* saldo kurang → bayar tunai, tidak apa-apa */ }
+    } catch (_) {  }
 
     return { ride, fare };
   }

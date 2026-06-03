@@ -1244,8 +1244,6 @@ class _TripItem {
       );
 }
 
-// ─── Receipt / Kwitansi Sheet ─────────────────────────────────────────────────
-
 String _fmtFare(double fare) {
   if (fare <= 0) return '-';
   final s = fare.toInt().toString();
@@ -1301,7 +1299,7 @@ class _ReceiptSheetState extends State<_ReceiptSheet>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Dark gradient header ──────────────────────────────────────────
+
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(24, 22, 24, 26),
@@ -1361,12 +1359,11 @@ class _ReceiptSheetState extends State<_ReceiptSheet>
             ),
           ),
 
-          // ── Body ─────────────────────────────────────────────────────────
           Padding(
             padding: EdgeInsets.fromLTRB(20, 20, 20, 16 + bottom),
             child: Column(
               children: [
-                // Large fare display
+
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 18),
@@ -1406,7 +1403,6 @@ class _ReceiptSheetState extends State<_ReceiptSheet>
 
                 const SizedBox(height: 14),
 
-                // Stats row
                 Row(children: [
                   _ReceiptStat(
                     icon: Icons.route_rounded,
@@ -1425,7 +1421,6 @@ class _ReceiptSheetState extends State<_ReceiptSheet>
 
                 const SizedBox(height: 14),
 
-                // Dashed receipt divider
                 Row(
                   children: List.generate(
                     30,
@@ -1443,7 +1438,6 @@ class _ReceiptSheetState extends State<_ReceiptSheet>
 
                 const SizedBox(height: 14),
 
-                // Route
                 _ReceiptRouteRow(
                   icon: Icons.my_location_rounded,
                   label: 'Asal',

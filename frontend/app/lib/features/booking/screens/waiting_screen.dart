@@ -41,7 +41,6 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
   bool _driverOffline = false;
   DateTime? _lastDriverUpdate;
 
-  // Phase: searching → pickup (accepted is merged into pickup)
   _WaitPhase _phase = _WaitPhase.searching;
 
   LatLng _passengerPos = const LatLng(-6.9175, 107.6191);
@@ -149,7 +148,6 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
       }
     });
 
-    // Driver accepted → skip intermediate state, go straight to "menuju penjemputan"
     _socket?.on('rideAccepted', (data) {
       if (!mounted) return;
       final map = Map<String, dynamic>.from(data as Map);
@@ -159,7 +157,7 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
         _driverPlate  = (map['driverPlate'] as String?) ?? '-';
         _driverPhone  = (map['driverPhone'] as String?) ?? '';
         _driverRating = num.tryParse(map['driverRating']?.toString() ?? '')?.toDouble() ?? 5.0;
-        _phase = _WaitPhase.pickup; // skip accepted — show "menuju penjemputan" immediately
+        _phase = _WaitPhase.pickup;
       });
       ref.read(bookingProvider.notifier).setActive(rideStatus: 'ACCEPTED');
       if (_rideId.isNotEmpty) {
@@ -221,8 +219,6 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
     _socket?.on('cancelApproved', (_) {});
     _socket?.on('cancelRejected', (_) {});
 
-    // Fallback: if driver ends trip while passenger is still on this screen
-    // (ONGOING event was missed), navigate home so passenger isn't frozen
     _socket?.on('rideEnded', (data) {
       if (!mounted) return;
       ref.read(bookingProvider.notifier).reset();
@@ -257,7 +253,7 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
       if (!mounted) return;
       final data = resp.data as Map<String, dynamic>;
       final status = data['status'] as String? ?? '';
-      // Restore coords from API when navigating from FCM tap (no args provided)
+
       final apiDestLat = num.tryParse(data['destinationLat']?.toString() ?? '')?.toDouble();
       final apiDestLng = num.tryParse(data['destinationLng']?.toString() ?? '')?.toDouble();
       final apiOriginLat = num.tryParse(data['originLat']?.toString() ?? '')?.toDouble();
@@ -269,7 +265,7 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
       if (apiOriginLat != null && apiOriginLng != null) {
         _passengerPos = LatLng(apiOriginLat, apiOriginLng);
       }
-      // Restore driver info if available
+
       final driver = data['driver'] as Map<String, dynamic>?;
       if (driver != null) {
         _driverName  = (driver['name']  as String?) ?? _driverName;
@@ -332,7 +328,6 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
     );
   }
 
-  // Called after driver approves OR when no driver yet (still searching)
   Future<void> _doHttpCancel() async {
     _socket?.off('rideCancelled');
     _socket?.off('cancelApproved');
@@ -349,7 +344,7 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
   }
 
   Future<void> _confirmCancel() async {
-    // If no driver yet (still searching), cancel directly without approval
+
     if (_phase == _WaitPhase.searching) {
       final confirmed = await showDialog<bool>(
         context: context,
@@ -383,7 +378,6 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
       return;
     }
 
-    // Driver is assigned — passenger can cancel directly
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -456,7 +450,7 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
     return Scaffold(
       body: Stack(
         children: [
-          // Map background
+
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
@@ -558,7 +552,6 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
             ],
           ),
 
-          // Gradient overlay at bottom for readability
           Positioned(
             bottom: 0, left: 0, right: 0,
             height: 280,
@@ -578,7 +571,6 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
             ),
           ),
 
-          // Driver offline warning banner
           if (_driverOffline)
             Positioned(
               top: 0, left: 0, right: 0,
@@ -611,7 +603,6 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
               ),
             ),
 
-          // Re-center button (shown when user has panned/zoomed away)
           if (_userInteracted)
             Positioned(
               top: 120, right: 16,
@@ -646,12 +637,11 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // ── Status card ──
+
                   _buildStatusCard(driverFound),
 
                   const Spacer(),
 
-                  // ── Driver info card (slides up when driver found) ──
                   if (driverFound)
                     SlideTransition(
                       position: _cardSlide,
@@ -865,7 +855,7 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Gradient header strip
+
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -918,10 +908,10 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                // Driver info row
+
                 Row(
                   children: [
-                    // Avatar
+
                     Container(
                       width: 60,
                       height: 60,
@@ -953,7 +943,7 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
                       ),
                     ),
                     const SizedBox(width: 16),
-                    // Name + rating + plate
+
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1003,7 +993,7 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
                         ],
                       ),
                     ),
-                    // ETA chip
+
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
@@ -1025,7 +1015,6 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
 
                 const SizedBox(height: 16),
 
-                // Chat + Phone action buttons
                 Row(
                   children: [
                     Expanded(
@@ -1070,8 +1059,6 @@ class _WaitingScreenState extends ConsumerState<WaitingScreen>
     );
   }
 }
-
-// ── Supporting widgets ──────────────────────────────────────────────────────
 
 class _PulseMarker extends StatelessWidget {
   const _PulseMarker({required this.pulse, required this.child});

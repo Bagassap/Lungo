@@ -239,7 +239,7 @@ class _HomeContentState extends State<HomeContent>
       });
       if (mounted) setState(() => _isOnline = !_isOnline);
     } catch (_) {
-      // API gagal — jangan ubah state
+
     } finally {
       if (mounted) setState(() => _isToggling = false);
     }

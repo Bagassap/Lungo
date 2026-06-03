@@ -76,7 +76,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen>
       resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // Background gradient
+
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -92,7 +92,6 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen>
             ),
           ),
 
-          // Decorative circles
           Positioned(
             top: -60,
             right: -40,
@@ -118,7 +117,6 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen>
             ),
           ),
 
-          // Logo section (upper area)
           Positioned(
             top: 0,
             left: 0,
@@ -153,7 +151,6 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen>
             ),
           ),
 
-          // Bottom card
           Align(
             alignment: Alignment.bottomCenter,
             child: AnimatedPadding(
@@ -187,7 +184,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen>
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Handle bar
+
                           Center(
                             child: Container(
                               width: 40,

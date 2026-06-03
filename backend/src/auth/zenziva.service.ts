@@ -5,7 +5,6 @@ import axios from 'axios';
 export class ZenzivaService {
   private readonly logger = new Logger(ZenzivaService.name);
 
-  // Zenziva WA OTP Blue Tick butuh format 08xxxxxxxxxx
   private toZenzivaPhone(phone: string): string {
     const digits = phone.replace(/\D/g, '');
     if (digits.startsWith('62')) return '0' + digits.slice(2);

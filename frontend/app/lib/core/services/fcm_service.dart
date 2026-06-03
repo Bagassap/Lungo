@@ -11,7 +11,6 @@ class FcmService {
   static final _messaging = FirebaseMessaging.instance;
   static GlobalKey<NavigatorState>? _navigatorKey;
 
-  // Pending tab index consumed by MainScreen on next navigation to /main
   static int _pendingTabIndex = -1;
   static int consumePendingTabIndex() {
     final idx = _pendingTabIndex;
@@ -19,7 +18,6 @@ class FcmService {
     return idx;
   }
 
-  // Pending ride navigation: {route, rideId} — consumed by MainScreen
   static Map<String, String>? _pendingRideNav;
   static Map<String, String>? consumePendingRideNav() {
     final nav = _pendingRideNav;
@@ -27,7 +25,6 @@ class FcmService {
     return nav;
   }
 
-  // Pending driver accept from notification — consumed by DriverHomeScreen
   static Map<String, dynamic>? _pendingDriverAccept;
   static void setPendingDriverAccept(Map<String, dynamic> data) {
     _pendingDriverAccept = data;
@@ -38,8 +35,6 @@ class FcmService {
     return d;
   }
 
-  // Guard: true saat card order sedang tampil di DriverHomeScreen
-  // Cegah FCM banner tap mem-navigate ulang saat card sudah aktif
   static bool _hasActivePendingRequest = false;
   static void setHasActivePendingRequest(bool value) {
     _hasActivePendingRequest = value;
@@ -63,19 +58,15 @@ class FcmService {
     FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
 
     FirebaseMessaging.onMessage.listen((message) {
-      debugPrint('[FCM] onMessage raw data: ${message.data}');
       final title = message.notification?.title ?? '';
       final body  = message.notification?.body  ?? '';
       _showInAppBanner(title, body, message.data);
     });
 
-    // App in background → user tapped notification
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      debugPrint('[FCM] onMessageOpenedApp raw data: ${message.data}');
       _handleNotificationTap(message.data);
     });
 
-    // App terminated → user tapped notification
     final initial = await _messaging.getInitialMessage();
     if (initial != null) {
       Future.delayed(const Duration(milliseconds: 800), () {
@@ -97,13 +88,8 @@ class FcmService {
 
     switch (type) {
       case 'NEW_RIDE_REQUEST':
-        debugPrint('[FCM] NEW_RIDE_REQUEST raw: $data');
-        debugPrint('[FCM] passengerName: ${data['passengerName']}');
-        debugPrint('[FCM] destLat: ${data['destinationLat']}');
-        // Jika card order sudah tampil (dari socket), abaikan FCM tap
-        // agar tidak navigate ulang dan skip card accept/reject driver
+
         if (_hasActivePendingRequest) {
-          debugPrint('[FCM] NEW_RIDE_REQUEST diabaikan — card order sedang aktif');
           return;
         }
         FcmService.setPendingDriverAccept(Map<String, dynamic>.from(data));
@@ -115,30 +101,28 @@ class FcmService {
         nav.pushNamedAndRemoveUntil('/main', (_) => false);
       case 'RIDE_STARTED':
         final rideIdTrip = data['rideId'] as String? ?? '';
-        // Route ke /waiting — _fetchAndRestorePhase detects ONGOING dan push /trip
-        // dengan TripArgs lengkap dari API. Direct push /trip tanpa TripArgs
-        // menyebabkan template kosong (default LatLng).
+
         _pendingRideNav = {'route': '/waiting', 'rideId': rideIdTrip};
         nav.pushNamedAndRemoveUntil('/main', (_) => false);
       case 'CHAT_FROM_DRIVER':
       case 'CHAT_FROM_PASSENGER':
-        // Tab 2 = Chat (baik untuk passenger maupun driver)
+
         _pendingTabIndex = 2;
         nav.pushNamedAndRemoveUntil('/main', (_) => false);
       case 'RIDE_DONE':
-        // Passenger: tab 1 = Aktivitas (riwayat perjalanan + prompt rating)
+
         _pendingTabIndex = 1;
         nav.pushNamedAndRemoveUntil('/main', (_) => false);
       case 'DRIVER_TRIP_DONE':
-        // Driver: tab 1 = Aktivitas driver (riwayat & pendapatan)
+
         _pendingTabIndex = 1;
         nav.pushNamedAndRemoveUntil('/main', (_) => false);
       case 'RIDE_CANCELLED':
-        // Keduanya: kembali ke Home (tab 0) agar bisa cari lagi
+
         _pendingTabIndex = 0;
         nav.pushNamedAndRemoveUntil('/main', (_) => false);
       case 'ADMIN_BROADCAST':
-        // Tab 3 = Profile — berisi link ke halaman notifikasi
+
         _pendingTabIndex = 3;
         nav.pushNamedAndRemoveUntil('/main', (_) => false);
     }
@@ -248,8 +232,6 @@ class FcmService {
   static Future<void> _saveToken(String token) async {
     try {
       await DioClient.create().post('/users/fcm-token', data: {'fcmToken': token});
-      debugPrint('[FCM] FCM token disimpan ke backend');
     } catch (_) {}
   }
 }
-

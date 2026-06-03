@@ -64,8 +64,6 @@ class LocationSearchService {
     headers: {'User-Agent': 'LungoApp/1.0 (flutter; android)'},
   ));
 
-  // ── Public entry point ───────────────────────────────────────────────────────
-
   static Future<List<SearchResult>> search(
     String query,
     double userLat,
@@ -73,23 +71,19 @@ class LocationSearchService {
   ) async {
     final all = <SearchResult>[];
 
-    // Stage 0: HERE Discover — most accurate, uses real POI database
     final here = await HereService.searchPlaces(query, userLat, userLng);
     all.addAll(here);
 
-    // Stage 1: Photon (fast, bias toward user location)
     final photon = await _photon(query, userLat, userLng);
     for (final r in photon) {
       if (!all.any((x) => x.coordKey == r.coordKey)) all.add(r);
     }
 
-    // Stage 2: Overpass 2 km — very local POIs
     final local = await _overpass(query, userLat, userLng, 2000);
     for (final r in local) {
       if (!all.any((x) => x.coordKey == r.coordKey)) all.add(r);
     }
 
-    // Stage 3: Overpass 10 km if still sparse
     if (all.length < 3) {
       final wider = await _overpass(query, userLat, userLng, 10000);
       for (final r in wider) {
@@ -97,7 +91,6 @@ class LocationSearchService {
       }
     }
 
-    // Stage 4: Province-scoped Nominatim fallback if still empty
     if (all.isEmpty) {
       final fallback = await _nominatimBounded(
           '$query Jawa Tengah', userLat, userLng, 2.0);
@@ -106,8 +99,6 @@ class LocationSearchService {
 
     return _process(all, userLat, userLng);
   }
-
-  // ── Photon ───────────────────────────────────────────────────────────────────
 
   static Future<List<SearchResult>> _photon(
     String query,
@@ -161,8 +152,6 @@ class LocationSearchService {
       return [];
     }
   }
-
-  // ── Overpass ─────────────────────────────────────────────────────────────────
 
   static Future<List<SearchResult>> _overpass(
     String query,
@@ -237,8 +226,6 @@ out center 25;''';
     }
   }
 
-  // ── Nominatim bounded ────────────────────────────────────────────────────────
-
   static Future<List<SearchResult>> _nominatimBounded(
     String query,
     double lat,
@@ -297,8 +284,6 @@ out center 25;''';
     }
   }
 
-  // ── Sort + dedup ─────────────────────────────────────────────────────────────
-
   static List<SearchResult> _process(
     List<SearchResult> results,
     double userLat,
@@ -313,8 +298,6 @@ out center 25;''';
         .compareTo(b.distanceTo(userLat, userLng)));
     return unique.take(20).toList();
   }
-
-  // ── Tag helpers ───────────────────────────────────────────────────────────────
 
   static String _typeFromTags(Map<String, dynamic> tags) {
     if (tags['amenity'] != null) return tags['amenity'] as String;

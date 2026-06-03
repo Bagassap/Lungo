@@ -60,7 +60,6 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     }
   }
 
-  // Client joins a specific ride room to receive scoped events
   @SubscribeMessage('joinRide')
   async handleJoinRide(
     @MessageBody() data: { rideId: string },
@@ -70,7 +69,6 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     client.join(room);
     console.log(`[Tracking] ${client.id} joined room ${room}`);
 
-    // Kirim posisi passenger terakhir dari Redis ke client yang baru join (driver reconnect)
     try {
       const lastPos = await this.redisService.getPassengerLocation(data.rideId);
       if (lastPos) {
@@ -117,7 +115,7 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     };
 
     if (data.rideId) {
-      // Scoped to ride room only — passenger sees driver moving
+
       this.server.to(`ride:${data.rideId}`).emit('driverLocationUpdated', locationPayload);
 
       const ride = this.activeRides.get(data.rideId);
@@ -134,7 +132,6 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
         const durationMinutes = durationSeconds / 60;
         const fare = this.tariffService.getRealtimeFare(ride.totalDistanceKm, durationMinutes);
 
-        // Broadcast meter update to ride room (both passenger and driver)
         this.server.to(`ride:${data.rideId}`).emit('meter_update', {
           rideId: data.rideId,
           distance_km: Math.round(ride.totalDistanceKm * 100) / 100,
@@ -143,7 +140,6 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
           status: 'ONGOING',
         });
 
-        // Keep legacy argoUpdate for backward compat
         this.server.to(`ride:${data.rideId}`).emit('argoUpdate', {
           rideId: data.rideId,
           distanceKm: Math.round(ride.totalDistanceKm * 100) / 100,
@@ -152,7 +148,7 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
         });
       }
     } else {
-      // Driver is online but not on a ride — broadcast globally (for nearby driver display)
+
       this.server.emit('driverLocationUpdated', locationPayload);
     }
 
@@ -164,7 +160,7 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     @MessageBody() data: { rideId: string; driverId: string; latitude: number; longitude: number },
     @ConnectedSocket() client: Socket,
   ) {
-    // Driver joins the ride room
+
     client.join(`ride:${data.rideId}`);
 
     this.activeRides.set(data.rideId, {
@@ -175,7 +171,6 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
       totalDistanceKm: 0,
     });
 
-    // Notify ride room that ride is now ONGOING
     this.server.to(`ride:${data.rideId}`).emit('rideStatusChanged', {
       rideId: data.rideId,
       status: 'ONGOING',
@@ -292,16 +287,14 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     }
   }
 
-  // Passenger mengirim posisi GPS mereka selama trip
   @SubscribeMessage('updatePassengerLocation')
   async handleUpdatePassengerLocation(
     @MessageBody() data: { passengerId: string; rideId: string; latitude: number; longitude: number },
     @ConnectedSocket() _client: Socket,
   ) {
-    // Simpan ke Redis agar driver bisa dapat posisi terbaru saat reconnect (TTL 60 detik)
+
     await this.redisService.setPassengerLocation(data.rideId, data.latitude, data.longitude);
 
-    // Broadcast ke ride room — driver menerima ini untuk update marker passenger
     this.server.to(`ride:${data.rideId}`).emit('passengerLocationUpdated', {
       rideId: data.rideId,
       latitude: data.latitude,
@@ -316,7 +309,6 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     return { status: 'offline', driverId: data.driverId };
   }
 
-  // Called by BookingService when ride is created — broadcasts only to nearby drivers (≤5 km)
   broadcastNewRide(
     payload: {
       rideId: string;
@@ -334,7 +326,7 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     nearbyDriverIds: string[],
   ) {
     if (nearbyDriverIds.length === 0) {
-      // No nearby drivers found — do not broadcast globally to avoid cross-province matches
+
       console.log(`[Tracking] No nearby drivers for ride ${payload.rideId}, skipping broadcast`);
       return;
     }
@@ -344,7 +336,6 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     console.log(`[Tracking] broadcastNewRide → ${nearbyDriverIds.length} nearby driver(s) for ride ${payload.rideId}`);
   }
 
-  // Called by BookingService when driver accepts — scoped to ride room
   notifyRideAccepted(payload: {
     rideId: string;
     driverId: string;
@@ -353,13 +344,12 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     driverRating?: number;
     driverPhone?: string;
   }) {
-    // Emit to ride room (passenger already joined) + global for driver app
+
     this.server.to(`ride:${payload.rideId}`).emit('rideAccepted', payload);
-    // Also emit globally so driver app knows the accept was confirmed
+
     this.server.emit('rideAccepted', payload);
   }
 
-  // Called by BookingService on status transitions (PICKUP, ONGOING, DONE)
   notifyRideStatusChanged(rideId: string, status: string, extra?: Record<string, unknown>) {
     this.server.to(`ride:${rideId}`).emit('rideStatusChanged', {
       rideId,
@@ -372,14 +362,13 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     this.server.to(`ride:${rideId}`).emit('rideCancelled', { rideId });
   }
 
-  // Passenger requests cancellation — driver must approve/reject
   @SubscribeMessage('passengerCancelRequest')
   async handlePassengerCancelRequest(
     @MessageBody() data: { rideId: string },
     @ConnectedSocket() _client: Socket,
   ) {
     this.server.to(`ride:${data.rideId}`).emit('cancelRequest', { rideId: data.rideId });
-    // Also emit to driver's personal room in case driver socket reconnected and left ride room
+
     try {
       const ride = await this.rideRepo.findOne({ where: { id: data.rideId } });
       if (ride?.driverId) {
@@ -389,7 +378,6 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     return { status: 'ok' };
   }
 
-  // Driver approves passenger cancellation
   @SubscribeMessage('driverCancelApproved')
   handleDriverCancelApproved(
     @MessageBody() data: { rideId: string },
@@ -399,7 +387,6 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
     return { status: 'ok' };
   }
 
-  // Driver rejects passenger cancellation
   @SubscribeMessage('driverCancelRejected')
   handleDriverCancelRejected(
     @MessageBody() data: { rideId: string },

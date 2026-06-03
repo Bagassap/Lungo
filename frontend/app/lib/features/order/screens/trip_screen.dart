@@ -82,7 +82,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
     _fare = _parseDouble(_rideData['estimatedFare'], 14000);
     _distanceKm = _parseDouble(_rideData['distanceKm']);
 
-    // Keep chat connected for ongoing trip
     if (_rideId.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -129,7 +128,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
 
     _socket?.onConnect((_) async {
       if (_rideId.isEmpty) return;
-      // Join ride room so driver receives scoped events (rideCancelled, meter_update)
+
       _socket?.emit('joinRide', {'rideId': _rideId});
       double lat = _currentPos.latitude;
       double lng = _currentPos.longitude;
@@ -147,7 +146,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
       });
     });
 
-    // If passenger cancels mid-trip, return driver to home
     _socket?.on('rideCancelled', (data) {
       if (!mounted) return;
       _tripTimer?.cancel();
@@ -303,7 +301,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
       child: Scaffold(
       body: Stack(
         children: [
-          // Map
+
           FlutterMap(
             mapController: _mapCtrl,
             options: MapOptions(
@@ -390,7 +388,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
             ],
           ),
 
-          // Top stats bar
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -429,7 +426,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
             ),
           ),
 
-          // Re-center button (shown when user has panned/zoomed away)
           if (_userInteracted)
             Positioned(
               bottom: 270, right: 16,
@@ -457,7 +453,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
               ),
             ),
 
-          // Bottom card
           Positioned(
             bottom: 0, left: 0, right: 0,
             child: Container(
@@ -486,7 +481,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                     ),
                   ),
 
-                  // Passenger info row
                   Row(
                     children: [
                       Container(
@@ -538,7 +532,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                           ],
                         ),
                       ),
-                      // LIVE badge
+
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
@@ -569,7 +563,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                   ),
                   const SizedBox(height: 14),
 
-                  // Chat + Phone action buttons
                   Row(
                     children: [
                       Expanded(
@@ -595,7 +588,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
                   ),
                   const SizedBox(height: 14),
 
-                  // End trip button — only active when within 300m of destination
                   if (!_nearDestination && !_isFinishing)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
@@ -679,10 +671,6 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen>
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  Driver Trip Complete Sheet
-// ═══════════════════════════════════════════════════════════════════════════
-
 class _DriverTripCompleteSheet extends StatefulWidget {
   const _DriverTripCompleteSheet({
     required this.passengerName,
@@ -734,7 +722,7 @@ class _DriverTripCompleteSheetState extends State<_DriverTripCompleteSheet>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Gradient header
+
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
@@ -800,7 +788,7 @@ class _DriverTripCompleteSheetState extends State<_DriverTripCompleteSheet>
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
             child: Column(
               children: [
-                // Trip stats row
+
                 Row(
                   children: [
                     Expanded(child: _StatTile(
@@ -824,7 +812,6 @@ class _DriverTripCompleteSheetState extends State<_DriverTripCompleteSheet>
                 ),
                 const SizedBox(height: 16),
 
-                // Earnings card
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
@@ -865,7 +852,6 @@ class _DriverTripCompleteSheetState extends State<_DriverTripCompleteSheet>
                 ),
                 const SizedBox(height: 12),
 
-                // Cash reminder
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(

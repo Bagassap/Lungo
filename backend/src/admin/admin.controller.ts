@@ -122,6 +122,26 @@ export class AdminController {
     return this.adminService.getActiveChats();
   }
 
+  @Get('trips/active')
+  getActiveTrips() {
+    return this.adminService.getActiveTrips();
+  }
+
+  @Get('trips/by-driver')
+  getTripsByDriver() {
+    return this.adminService.getTripsByDriver();
+  }
+
+  @Get('revenue/chart')
+  getRevenueChart() {
+    return this.adminService.getRevenueChart();
+  }
+
+  @Get('revenue')
+  getRevenue(@Query('period') period?: string) {
+    return this.adminService.getRevenue(period ?? 'month');
+  }
+
   @Get('trips')
   getTrips(
     @Query('status') status?: string,
@@ -138,6 +158,11 @@ export class AdminController {
   @Get('trips/:id')
   getTripDetail(@Param('id') id: string) {
     return this.adminService.getTripDetail(id);
+  }
+
+  @Get('reports/summary')
+  getWeeklyReport() {
+    return this.adminService.getWeeklyReport();
   }
 
   @Get('reports/weekly')

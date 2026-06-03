@@ -7,9 +7,6 @@ import '../../features/auth/providers/auth_provider.dart';
 
 enum _LocState { checking, granted, serviceOff, denied, permanent }
 
-/// Wraps [child] and enforces that location is enabled before the child
-/// is shown. Admin role bypasses the check. Automatically re-checks when
-/// the user returns from the system Settings app.
 class LocationGate extends ConsumerStatefulWidget {
   final Widget child;
   const LocationGate({super.key, required this.child});
@@ -49,7 +46,7 @@ class _LocationGateState extends ConsumerState<LocationGate>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Auto re-check when user returns from Settings
+
     if (state == AppLifecycleState.resumed &&
         _state != _LocState.granted &&
         _state != _LocState.checking) {
@@ -73,7 +70,7 @@ class _LocationGateState extends ConsumerState<LocationGate>
     }
 
     var perm = await Geolocator.checkPermission();
-    // Only show native permission dialog once; after that, redirect to Settings
+
     if (perm == LocationPermission.denied && !_hasRequested) {
       _hasRequested = true;
       perm = await Geolocator.requestPermission();
@@ -107,19 +104,17 @@ class _LocationGateState extends ConsumerState<LocationGate>
     } else {
       await Geolocator.openAppSettings();
     }
-    // didChangeAppLifecycleState handles re-check on return
+
   }
 
   @override
   Widget build(BuildContext context) {
     final role = ref.watch(authProvider).user?.role ?? 'PASSENGER';
 
-    // Admin doesn't require location
     if (role == 'ADMIN' || _state == _LocState.granted) {
       return widget.child;
     }
 
-    // Initial loading state
     if (_state == _LocState.checking) {
       return const Scaffold(
         backgroundColor: Color(0xFF0540F2),
@@ -150,7 +145,7 @@ class _LocationGateState extends ConsumerState<LocationGate>
           'Kamu telah menolak izin lokasi secara permanen. Buka pengaturan aplikasi untuk mengaktifkan izin lokasi agar bisa menggunakan Lungo.';
       btnLabel = 'Buka Pengaturan';
     } else {
-      // denied (after requesting once)
+
       cardTitle = 'Izin Lokasi Diperlukan';
       cardDesc =
           'Lungo membutuhkan akses lokasi untuk menampilkan posisimu di peta dan menghubungkan kamu dengan driver terdekat.';
@@ -180,7 +175,6 @@ class _LocationGateState extends ConsumerState<LocationGate>
                 children: [
                   const Spacer(),
 
-                  // App icon
                   Container(
                     width: 96,
                     height: 96,
@@ -205,7 +199,6 @@ class _LocationGateState extends ConsumerState<LocationGate>
                   ),
                   const SizedBox(height: 20),
 
-                  // App name
                   Text(
                     'Lungo',
                     style: GoogleFonts.plusJakartaSans(
@@ -228,7 +221,6 @@ class _LocationGateState extends ConsumerState<LocationGate>
 
                   const Spacer(),
 
-                  // Bottom card
                   FadeTransition(
                     opacity: _fade,
                     child: SlideTransition(
@@ -251,7 +243,7 @@ class _LocationGateState extends ConsumerState<LocationGate>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Card title
+
                             Text(
                               cardTitle,
                               style: GoogleFonts.plusJakartaSans(
@@ -262,7 +254,6 @@ class _LocationGateState extends ConsumerState<LocationGate>
                             ),
                             const SizedBox(height: 8),
 
-                            // Card description
                             Text(
                               cardDesc,
                               style: GoogleFonts.plusJakartaSans(
@@ -273,7 +264,6 @@ class _LocationGateState extends ConsumerState<LocationGate>
                             ),
                             const SizedBox(height: 16),
 
-                            // Feature chips
                             Wrap(
                               spacing: 8,
                               runSpacing: 8,
@@ -294,7 +284,6 @@ class _LocationGateState extends ConsumerState<LocationGate>
                             ),
                             const SizedBox(height: 24),
 
-                            // Primary CTA button
                             SizedBox(
                               width: double.infinity,
                               height: 54,

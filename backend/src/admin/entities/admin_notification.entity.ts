@@ -11,7 +11,7 @@ export class AdminNotification {
   id!: string;
 
   @Column()
-  type!: string; // 'NEW_USER' | 'NEW_DRIVER_REGISTRATION' | 'DRIVER_PAYMENT'
+  type!: string;
 
   @Column()
   title!: string;

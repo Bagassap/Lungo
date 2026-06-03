@@ -13,7 +13,6 @@ import '../../passenger/models/chat_message_model.dart';
 import '../providers/driver_chat_provider.dart';
 import '../providers/driver_provider.dart';
 
-// ─── colors ──────────────────────────────────────────────────────────────────
 class _C {
   static const bg         = Color(0xFFF0F4FF);
   static const darkest    = Color(0xFF0B0940);
@@ -30,9 +29,6 @@ class _C {
   static const listBg     = Color(0xFFF8FAFF);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  CHAT LIST SCREEN  (WhatsApp-style)
-// ═══════════════════════════════════════════════════════════════════════════
 class DriverChatScreen extends ConsumerWidget {
   const DriverChatScreen({super.key});
 
@@ -354,9 +350,6 @@ class _ChatTile extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  CHAT DETAIL SCREEN
-// ═══════════════════════════════════════════════════════════════════════════
 class DriverChatDetail extends ConsumerStatefulWidget {
   const DriverChatDetail({super.key});
 
@@ -492,9 +485,7 @@ class DriverChatDetailState extends ConsumerState<DriverChatDetail>
         });
       }
       Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
-    } catch (e) {
-      debugPrint('media pick error: $e');
-    }
+    } catch (_) {}
   }
 
   Future<void> _callPassenger() async {
@@ -641,7 +632,6 @@ class DriverChatDetailState extends ConsumerState<DriverChatDetail>
   }
 }
 
-// ─── data classes ─────────────────────────────────────────────────────────────
 class _LocalMedia {
   final String id, path;
   final bool   isVideo;
@@ -661,7 +651,6 @@ class _ChatItem {
   factory _ChatItem.media(_LocalMedia m)        => _ChatItem._(media: m);
 }
 
-// ─── widgets ──────────────────────────────────────────────────────────────────
 class _AppBar extends StatelessWidget {
   final String name;
   final bool   online;
@@ -1232,7 +1221,6 @@ class _IconBtn extends StatelessWidget {
       );
 }
 
-// ─── media picker sheet ────────────────────────────────────────────────────────
 enum _MediaType { gallery, camera, videoGallery }
 
 class _MediaSheet extends StatelessWidget {
@@ -1323,8 +1311,6 @@ class _MediaBtn extends StatelessWidget {
         ),
       );
 }
-
-// ─── in-app call sheet ────────────────────────────────────────────────────────
 
 class _CallSheet extends StatelessWidget {
   final String name, phone;

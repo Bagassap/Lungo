@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/fcm_service.dart';
 import '../../../core/storage/secure_storage.dart';
@@ -78,13 +77,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return;
       }
 
-      // Refresh token dulu sebelum getProfile agar token tidak expired
       try {
         await _service.refreshToken();
-        debugPrint('[Auth] checkSession: token refreshed');
-      } catch (e) {
-        debugPrint('[Auth] checkSession: refresh gagal ($e), coba token lama');
-      }
+      } catch (_) {}
 
       final user = await _service.getProfile();
       if (user.name.isEmpty || user.role.isEmpty) {
@@ -94,13 +89,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(status: AuthStatus.authenticated, user: user);
       FcmService.registerTokenAfterLogin();
     } catch (e) {
-      debugPrint('[Auth] checkSession error: $e');
-      // Jangan hapus storage jika ada active ride
-      final hasActiveRide =
-          (await SecureStorage.getPassengerRideId()) != null ||
-          (await SecureStorage.getDriverRideId()) != null;
-      if (!hasActiveRide) {
-        await SecureStorage.clear();
+
+      bool isAuthError = false;
+      if (e is DioException) {
+        final code = e.response?.statusCode ?? 0;
+        isAuthError = (code == 401 || code == 403);
+      }
+      if (isAuthError) {
+        final hasActiveRide =
+            (await SecureStorage.getPassengerRideId()) != null ||
+            (await SecureStorage.getDriverRideId()) != null;
+        if (!hasActiveRide) {
+          await SecureStorage.clear();
+        }
       }
       state = state.copyWith(status: AuthStatus.unauthenticated);
     }

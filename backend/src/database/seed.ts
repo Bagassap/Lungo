@@ -29,10 +29,9 @@ async function seed() {
   await AppDataSource.initialize();
   console.log('Database connected.\n');
 
-  // ── Migration: change unique constraint from (phone) to (phone, role) ──
   console.log('Running schema migration...');
   try {
-    // Find any unique constraint that covers only the phone column
+
     const rows: { constraint_name: string }[] = await AppDataSource.query(`
       SELECT tc.constraint_name
       FROM information_schema.table_constraints tc
@@ -61,7 +60,6 @@ async function seed() {
   }
   console.log();
 
-  // ── Migration: add ktpNumber column ──
   try {
     await AppDataSource.query(
       `ALTER TABLE drivers ADD COLUMN IF NOT EXISTS "ktpNumber" TEXT`,
@@ -71,7 +69,6 @@ async function seed() {
     console.log('  [MIGR] ktpNumber column:', e.message);
   }
 
-  // ── Migration: add fcmToken column to users ──
   try {
     await AppDataSource.query(
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS "fcmToken" TEXT`,
@@ -81,7 +78,6 @@ async function seed() {
     console.log('  [MIGR] fcmToken column:', e.message);
   }
 
-  // ── Migration: create admin_notifications table ──
   try {
     await AppDataSource.query(`
       CREATE TABLE IF NOT EXISTS admin_notifications (
@@ -99,7 +95,6 @@ async function seed() {
     console.log('  [MIGR] admin_notifications:', e.message);
   }
 
-  // ── Migration: create complaints table ──
   try {
     await AppDataSource.query(`
       DO $$ BEGIN
@@ -133,7 +128,6 @@ async function seed() {
     console.log('  [MIGR] complaints:', e.message);
   }
 
-  // ── Migration: create weekly_reports table ──
   try {
     await AppDataSource.query(`
       CREATE TABLE IF NOT EXISTS weekly_reports (
@@ -157,7 +151,6 @@ async function seed() {
     console.log('  [MIGR] weekly_reports:', e.message);
   }
 
-  // ── Migration: create audit_logs table ──
   try {
     await AppDataSource.query(`
       CREATE TABLE IF NOT EXISTS audit_logs (
@@ -177,7 +170,6 @@ async function seed() {
     console.log('  [MIGR] audit_logs:', e.message);
   }
 
-  // ── Migration: add driver registration columns ──
   const driverColumns: [string, string][] = [
     ['fcmToken',     'TEXT'],
     ['bpkbPhotoUrl', 'TEXT'],
@@ -198,7 +190,6 @@ async function seed() {
   }
   console.log();
 
-  // ── Seed accounts ──
   console.log('Seeding demo accounts...\n');
   const userRepo = AppDataSource.getRepository(User);
   const driverRepo = AppDataSource.getRepository(Driver);

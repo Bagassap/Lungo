@@ -3,7 +3,6 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as sio;
 import '../../../core/network/api_client.dart';
 import '../../../core/services/fcm_service.dart';
@@ -248,11 +247,9 @@ class DriverNotifier extends StateNotifier<DriverState> {
             passengerName: passengerName,
           ),
         ));
-        debugPrint('[Driver] _restoreActiveTrip: phase=$phase rideId=$rideId dipulihkan');
         if (state.phase == DriverRidePhase.navigating ||
             state.phase == DriverRidePhase.atPickup ||
             state.phase == DriverRidePhase.onTrip) {
-          debugPrint('[Driver] Trip aktif dipulihkan, reconnect socket...');
           if (_socket == null || !_socket!.connected) {
             unawaited(goOnline());
           }
@@ -260,28 +257,21 @@ class DriverNotifier extends StateNotifier<DriverState> {
       } else {
         await SecureStorage.clearDriverRideId();
       }
-    } catch (e) {
-      debugPrint('[Driver] _restoreActiveTrip error: $e');
-    }
+    } catch (_) {}
   }
 
   Future<void> goOnline() async {
-    debugPrint('[DRIVER] goOnline() dipanggil');
     setState(state.copyWith(isLoading: true));
     try {
       _driverUserId = await SecureStorage.getUserId();
-      debugPrint('[DRIVER] driverUserId: $_driverUserId');
 
       final perm = await Geolocator.checkPermission();
-      debugPrint('[DRIVER] GPS permission: $perm');
       if (perm == LocationPermission.denied) {
         await Geolocator.requestPermission();
       }
 
       final token = await SecureStorage.getAccessToken();
       final socketUrl = '${ApiClient.wsBaseUrl}/tracking';
-      debugPrint('[DRIVER] Socket URL: $socketUrl');
-      debugPrint('[DRIVER] Token ada: ${token != null && token.isNotEmpty}');
 
       _socket = sio.io(
         socketUrl,
@@ -289,39 +279,29 @@ class DriverNotifier extends StateNotifier<DriverState> {
           'Authorization': 'Bearer $token',
         }).build(),
       );
-      debugPrint('[DRIVER] sio.io() selesai, memanggil connect()...');
       _socket!.connect();
-      debugPrint('[DRIVER] connect() dipanggil, menunggu onConnect...');
 
       _socket!.onConnect((_) async {
-        debugPrint('[DRIVER] onConnect! Socket ID: ${_socket?.id}');
         final pos = await _currentPos();
-        debugPrint('[DRIVER] GPS pos: lat=${pos.latitude} lng=${pos.longitude}');
-        debugPrint('[DRIVER] Emitting driverOnline driverId=$_driverUserId...');
         _socket!.emit('driverOnline', {
           'driverId': _driverUserId,
           'latitude': pos.latitude,
           'longitude': pos.longitude,
         });
-        debugPrint('[DRIVER] driverOnline emitted!');
-        // Re-join ride room if on active trip (handles socket reconnection)
+
         final currentTrip = state.activeTrip;
         if (currentTrip != null) {
-          debugPrint('[DRIVER] Re-joining ride room: ${currentTrip.rideId}');
           _socket!.emit('joinRide', {'rideId': currentTrip.rideId});
         }
       });
 
       _socket!.onConnectError((err) {
-        debugPrint('[DRIVER] onConnectError: $err');
       });
 
       _socket!.onDisconnect((_) {
-        debugPrint('[DRIVER] onDisconnect — socket terputus');
       });
 
       _socket!.on('error', (err) {
-        debugPrint('[DRIVER] onError: $err');
       });
 
       _socket!.on('newRideRequest', _onNewRideRequest);
@@ -353,7 +333,6 @@ class DriverNotifier extends StateNotifier<DriverState> {
           if (s.activeTrip != null) 'rideId': s.activeTrip!.rideId,
         });
 
-        // Auto-reroute when driver deviates >50 m from the planned route
         if (!_isRerouting &&
             s.routePoints.isNotEmpty &&
             s.activeTrip != null &&
@@ -378,17 +357,12 @@ class DriverNotifier extends StateNotifier<DriverState> {
       });
 
       await Future.wait([_loadStats(), _loadHotZones()]);
-      debugPrint('[DRIVER] goOnline() try block selesai tanpa error');
-    } catch (e, st) {
-      debugPrint('[DRIVER] goOnline() EXCEPTION: $e');
-      debugPrint('[DRIVER] StackTrace: $st');
-    }
+    } catch (_) {}
     setState(
       state.copyWith(
         isOnline: true,
         isLoading: false,
-        // Do NOT reset phase here — newRideRequest may have already set it to
-        // 'request' while _loadStats/_loadHotZones were awaiting.
+
       ),
     );
   }
@@ -413,7 +387,6 @@ class DriverNotifier extends StateNotifier<DriverState> {
     );
   }
 
-  // Returns distance in km between two lat/lng points
   double _haversineKm(double lat1, double lng1, double lat2, double lng2) {
     const r = 6371.0;
     final dLat = (lat2 - lat1) * pi / 180;
@@ -425,27 +398,20 @@ class DriverNotifier extends StateNotifier<DriverState> {
   }
 
   void _onNewRideRequest(dynamic data) {
-    debugPrint('[DRIVER] newRideRequest diterima: $data');
-    debugPrint('[DRIVER] phase saat ini: ${state.phase}');
     if (!mounted || state.phase != DriverRidePhase.idle) {
-      debugPrint('[DRIVER] newRideRequest SKIP — mounted=$mounted phase=${state.phase}');
       return;
     }
     final d = Map<String, dynamic>.from(data as Map);
 
-    // Client-side distance guard: ignore requests from >5 km away
     final pos = state.position;
     if (pos != null) {
       final originLat = (d['originLat'] as num).toDouble();
       final originLng = (d['originLng'] as num).toDouble();
       final distKm = _haversineKm(pos.latitude, pos.longitude, originLat, originLng);
-      debugPrint('[DRIVER] newRideRequest jarak ke origin: ${distKm.toStringAsFixed(2)} km');
       if (distKm > 5.0) {
-        debugPrint('[DRIVER] newRideRequest SKIP — jarak ${distKm.toStringAsFixed(2)} km > 5 km');
         return;
       }
     } else {
-      debugPrint('[DRIVER] newRideRequest — pos null, skip distance guard');
     }
 
     final req = DriverRideRequest(
@@ -575,7 +541,7 @@ class DriverNotifier extends StateNotifier<DriverState> {
         return;
       }
     }
-    // Join ride room so driver receives scoped WebSocket events
+
     _socket?.emit('joinRide', {'rideId': req.rideId});
 
     final from = state.position ?? const LatLng(-6.9175, 107.6191);
@@ -814,11 +780,9 @@ class DriverNotifier extends StateNotifier<DriverState> {
   Future<void> acceptRideFromNotification(Map<String, dynamic> data) async {
     _requestReceivedAt = null;
     FcmService.setHasActivePendingRequest(false);
-    debugPrint('[Driver] acceptRideFromNotification start: $data');
     _driverUserId ??= await SecureStorage.getUserId();
     final rideId = data['rideId'] as String? ?? '';
     if (rideId.isEmpty) {
-      debugPrint('[Driver] acceptRideFromNotification: rideId kosong, abort');
       return;
     }
 
@@ -829,14 +793,11 @@ class DriverNotifier extends StateNotifier<DriverState> {
     }
 
     try {
-      debugPrint('[Driver] acceptRideFromNotification: call API accept rideId=$rideId driverId=$_driverUserId');
       await _dio.post(
         '/booking/rides/$rideId/accept',
         data: {'driverId': _driverUserId},
       );
-      debugPrint('[Driver] acceptRideFromNotification: API accept berhasil');
     } catch (e) {
-      debugPrint('[Driver] acceptRideFromNotification: API accept GAGAL: $e');
       return;
     }
 
@@ -863,28 +824,22 @@ class DriverNotifier extends StateNotifier<DriverState> {
     unawaited(_fetchAndSetRoute(from, LatLng(toD(data['originLat']), toD(data['originLng']))));
 
     if (_socket == null || !_socket!.connected) {
-      debugPrint('[Driver] acceptRideFromNotification: socket tidak aktif, goOnline()');
       unawaited(goOnline());
     } else {
-      debugPrint('[Driver] acceptRideFromNotification: emit joinRide rideId=$rideId');
       _socket!.emit('joinRide', {'rideId': rideId});
     }
-    debugPrint('[Driver] acceptRideFromNotification selesai');
   }
 
   void checkStaleState() {
-    // Only reset if socket is gone AND the driver was supposedly online.
-    // Do NOT reset a freshly-restored trip (isOnline=false, phase!=idle).
+
     if (_socket == null && state.isOnline) {
-      // Jangan reset jika ada pendingRequest yang masih dalam window 30 detik
+
       if (state.pendingRequest != null && _requestReceivedAt != null) {
         final elapsed = DateTime.now().difference(_requestReceivedAt!);
         if (elapsed < const Duration(seconds: 30)) {
-          debugPrint('[Driver] checkStaleState: pendingRequest masih valid (${elapsed.inSeconds}s), skip reset');
           return;
         }
       }
-      debugPrint('[Driver] checkStaleState: socket null + isOnline, reset state');
       _requestReceivedAt = null;
       FcmService.setHasActivePendingRequest(false);
       state = const DriverState();

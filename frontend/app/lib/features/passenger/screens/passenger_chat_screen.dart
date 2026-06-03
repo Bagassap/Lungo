@@ -11,7 +11,6 @@ import '../../booking/providers/booking_provider.dart';
 import '../providers/chat_provider.dart';
 import '../models/chat_message_model.dart';
 
-// ─── colors ─────────────────────────────────────────────────────────────────
 class _C {
   static const bg             = Color(0xFFF0F4FF);
   static const bubbleSent     = Color(0xFF0540F2);
@@ -29,9 +28,6 @@ class _C {
   static const listBg         = Color(0xFFF8FAFF);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  CHAT LIST SCREEN  (WhatsApp-style)
-// ═══════════════════════════════════════════════════════════════════════════
 class PassengerChatScreen extends ConsumerWidget {
   const PassengerChatScreen({super.key});
 
@@ -397,9 +393,6 @@ class _ChatTile extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  CHAT DETAIL SCREEN
-// ═══════════════════════════════════════════════════════════════════════════
 class PassengerChatDetail extends ConsumerStatefulWidget {
   const PassengerChatDetail({super.key});
 
@@ -999,8 +992,6 @@ class PassengerChatDetailState extends ConsumerState<PassengerChatDetail>
   }
 }
 
-// ─── shared widgets ──────────────────────────────────────────────────────────
-
 class _DriverAvatar extends StatelessWidget {
   final String? name;
   final bool isOnline;
@@ -1366,7 +1357,6 @@ class _QuickRepliesBar extends StatelessWidget {
       );
 }
 
-// ─── media picker sheet ───────────────────────────────────────────────────────
 enum _MediaType { gallery, camera, videoGallery }
 
 class _MediaSheet extends StatelessWidget {
@@ -1457,8 +1447,6 @@ class _MediaBtn extends StatelessWidget {
         ),
       );
 }
-
-// ─── in-app call sheet ────────────────────────────────────────────────────────
 
 class _CallSheet extends StatelessWidget {
   final String name, phone;

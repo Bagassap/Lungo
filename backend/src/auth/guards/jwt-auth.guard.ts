@@ -24,7 +24,7 @@ export class JwtAuthGuard implements CanActivate {
       const payload = this.jwtService.verify(token, {
         secret: this.configService.get<string>('JWT_SECRET'),
       });
-      // Expose both `userId` (controllers) and `sub` (legacy) from the same payload
+
       request['user'] = { ...payload, userId: payload.sub };
     } catch {
       throw new UnauthorizedException('Token tidak valid');

@@ -1,11 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 
-/**
- * Fonnte WhatsApp Gateway
- * Daftar & scan QR di: https://fonnte.com
- * Isi FONNTE_TOKEN di .env dengan token dari dashboard Fonnte
- */
 @Injectable()
 export class FonnteService {
   private readonly logger = new Logger(FonnteService.name);
@@ -17,7 +12,6 @@ export class FonnteService {
       return false;
     }
 
-    // Fonnte butuh format tanpa + : 628xxx
     const normalized = phone.replace(/^\+/, '');
 
     try {

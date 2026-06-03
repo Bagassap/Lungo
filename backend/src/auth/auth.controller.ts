@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -71,6 +71,13 @@ export class AuthController {
   @ApiOperation({ summary: 'Login langsung tanpa OTP untuk nomor terdaftar' })
   quickLogin(@Body() dto: SendOtpDto) {
     return this.authService.quickLogin(dto.phone);
+  }
+
+  @Get('verify-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Verifikasi token masih valid' })
+  verifyToken(@Req() req: Request & { user?: { sub: string; phone: string; role: string } }) {
+    return { valid: true, user: req.user };
   }
 
   @Post('select-role')

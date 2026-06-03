@@ -5,16 +5,10 @@ import 'package:latlong2/latlong.dart';
 import '../constants/api_constants.dart';
 import 'location_search_service.dart';
 
-/// HERE Maps service — routing (v8) with OSRM fallback, and place search
-/// (Discover API).
 class HereService {
   static final _http = HttpClient()
     ..connectionTimeout = const Duration(seconds: 8);
 
-  // ─── Routing ────────────────────────────────────────────────────────────────
-
-  /// Returns a route polyline from [from] to [to].
-  /// Tries HERE Routing v8 first; falls back to OSRM on any error.
   static Future<List<LatLng>> getRoute(LatLng from, LatLng to) async {
     final here = await _hereRoute(from, to);
     if (here.length >= 2) return here;
@@ -71,7 +65,7 @@ class HereService {
         }
       }
     } catch (_) {}
-    // Last resort: straight line
+
     return List.generate(12, (i) {
       final f = i / 11;
       return LatLng(
@@ -81,16 +75,12 @@ class HereService {
     });
   }
 
-  // ─── HERE Flexible Polyline decoder ─────────────────────────────────────────
-  // Encoding table: A=0..Z=25, a=26..z=51, 0=52..9=61, -=62, _=63
-  // Each char stores 6 bits: bit5=continuation, bits0-4=data.
-
   static int _charVal(int ascii) {
-    if (ascii >= 65 && ascii <= 90) return ascii - 65;   // A–Z → 0–25
-    if (ascii >= 97 && ascii <= 122) return ascii - 71;  // a–z → 26–51
-    if (ascii >= 48 && ascii <= 57) return ascii + 4;    // 0–9 → 52–61
-    if (ascii == 45) return 62;  // '-'
-    if (ascii == 95) return 63;  // '_'
+    if (ascii >= 65 && ascii <= 90) return ascii - 65;
+    if (ascii >= 97 && ascii <= 122) return ascii - 71;
+    if (ascii >= 48 && ascii <= 57) return ascii + 4;
+    if (ascii == 45) return 62;
+    if (ascii == 95) return 63;
     return 0;
   }
 
@@ -114,7 +104,7 @@ class HereService {
       return (v & 1) != 0 ? -(v >> 1) - 1 : (v >> 1);
     }
 
-    readUnsigned(); // version — always 1, skip
+    readUnsigned();
     final header    = readUnsigned();
     final precision = header & 0x0F;
     final thirdDim  = (header >> 4) & 0x07;
@@ -125,15 +115,12 @@ class HereService {
     while (idx < encoded.length) {
       lat += readSigned();
       lng += readSigned();
-      if (thirdDim != 0) readSigned(); // skip altitude/elevation
+      if (thirdDim != 0) readSigned();
       result.add(LatLng(lat / factor, lng / factor));
     }
     return result;
   }
 
-  // ─── Place search (HERE Discover) ───────────────────────────────────────────
-
-  /// Returns up to 15 place results near [lat],[lng] matching [query].
   static Future<List<SearchResult>> searchPlaces(
     String query,
     double lat,

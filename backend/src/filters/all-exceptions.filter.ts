@@ -18,7 +18,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const status = exception instanceof HttpException ? exception.getStatus() : 500;
 
-    // Log detail error di server (TIDAK dikirim ke client)
     this.logger.error(JSON.stringify({
       requestId: request['requestId'],
       status,

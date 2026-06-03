@@ -20,7 +20,6 @@ import '../../passenger/providers/chat_provider.dart';
 import '../../passenger/screens/passenger_chat_screen.dart';
 import '../providers/booking_provider.dart';
 
-// Phase of the trip from the passenger's perspective
 enum _TripPhase { accepted, pickup, ongoing }
 
 class TripArgs {
@@ -226,7 +225,7 @@ class _TripScreenState extends ConsumerState<TripScreen>
       if (!_userInteracted) {
         try { _mapController.move(newPos, 15); } catch (_) {}
       }
-      // Auto-reroute when driver deviates >200m from last route fetch point
+
       if (_phase == _TripPhase.ongoing && !_isRerouting) {
         final lastPos = _lastRouteFetchPos;
         if (lastPos == null || _distM(lastPos, newPos) > 200) {
@@ -279,7 +278,6 @@ class _TripScreenState extends ConsumerState<TripScreen>
     return R * 2 * math.atan2(math.sqrt(x), math.sqrt(1 - x));
   }
 
-  // Trims the HERE route polyline to only show the remaining path ahead of the driver.
   List<LatLng> _trimRoute(List<LatLng> route, LatLng pos) {
     if (route.length < 2) return route;
     double minDist = double.infinity;
@@ -414,14 +412,14 @@ class _TripScreenState extends ConsumerState<TripScreen>
                   userAgentPackageName: 'com.lungo.app',
                 ),
                 PolylineLayer(polylines: [
-                  // Faded full route outline
+
                   if (_routePoints.length >= 2)
                     Polyline(
                       points: _routePoints,
                       strokeWidth: 4,
                       color: AppColors.primaryColor.withValues(alpha: 0.25),
                     ),
-                  // Solid remaining route (trimmed to driver's current position)
+
                   if (remainingRoute.length >= 2)
                     Polyline(
                       points: remainingRoute,
@@ -484,7 +482,6 @@ class _TripScreenState extends ConsumerState<TripScreen>
             ),
           ),
 
-          // Driver offline warning banner
           if (_driverOffline)
             Positioned(
               top: 0, left: 0, right: 0,
@@ -517,7 +514,6 @@ class _TripScreenState extends ConsumerState<TripScreen>
               ),
             ),
 
-          // Top: live argo meter (ONGOING) or phase status banner
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -527,7 +523,6 @@ class _TripScreenState extends ConsumerState<TripScreen>
             ),
           ),
 
-          // Re-center button — shown when user has manually panned/zoomed
           if (_userInteracted)
             Positioned(
               bottom: 230, right: 16,
@@ -554,7 +549,6 @@ class _TripScreenState extends ConsumerState<TripScreen>
               ),
             ),
 
-          // Bottom driver card
           Positioned(
             bottom: 0, left: 0, right: 0,
             child: _buildBottomCard(initial),
@@ -686,7 +680,6 @@ class _TripScreenState extends ConsumerState<TripScreen>
           ),
         ),
 
-        // Phase status row (hidden once ONGOING)
         if (_phase != _TripPhase.ongoing) ...[
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
@@ -767,7 +760,6 @@ class _TripScreenState extends ConsumerState<TripScreen>
           const SizedBox(height: 14),
         ],
 
-        // Driver info row
         Row(children: [
           Container(
             width: 44, height: 44,
@@ -802,7 +794,7 @@ class _TripScreenState extends ConsumerState<TripScreen>
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Chat button
+
               GestureDetector(
                 onTap: _openChat,
                 child: Container(
@@ -834,7 +826,7 @@ class _TripScreenState extends ConsumerState<TripScreen>
                   ),
                 ),
               ],
-              // Animated fare chip during ONGOING
+
               if (_phase == _TripPhase.ongoing) ...[
                 const SizedBox(width: 8),
                 AnimatedBuilder(
@@ -859,7 +851,6 @@ class _TripScreenState extends ConsumerState<TripScreen>
           ),
         ]),
 
-        // Argo meter detail row (ONGOING only)
         if (_phase == _TripPhase.ongoing) ...[
           const SizedBox(height: 12),
           Container(
@@ -925,10 +916,6 @@ class _TripScreenState extends ConsumerState<TripScreen>
       );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  Trip Complete Bottom Sheet with Rating
-// ═══════════════════════════════════════════════════════════════════════════
-
 class _TripCompleteSheet extends StatefulWidget {
   const _TripCompleteSheet({
     required this.rideId,
@@ -992,7 +979,7 @@ class _TripCompleteSheetState extends State<_TripCompleteSheet>
           .post('/booking/rides/${widget.rideId}/rate', data: {'rating': _selectedRating});
       setState(() => _ratingSubmitted = true);
     } catch (_) {
-      setState(() => _ratingSubmitted = true); // silently done
+      setState(() => _ratingSubmitted = true);
     }
     await Future.delayed(const Duration(milliseconds: 800));
     widget.onDone();
@@ -1010,7 +997,7 @@ class _TripCompleteSheetState extends State<_TripCompleteSheet>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Dark gradient header
+
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
@@ -1024,7 +1011,7 @@ class _TripCompleteSheetState extends State<_TripCompleteSheet>
             ),
             child: Column(
               children: [
-                // Drag handle
+
                 Center(
                   child: Container(
                     width: 36, height: 4,
@@ -1035,7 +1022,7 @@ class _TripCompleteSheetState extends State<_TripCompleteSheet>
                     ),
                   ),
                 ),
-                // Animated checkmark
+
                 ScaleTransition(
                   scale: _scaleAnim,
                   child: Container(
@@ -1078,7 +1065,7 @@ class _TripCompleteSheetState extends State<_TripCompleteSheet>
             padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
             child: Column(
               children: [
-                // Trip stats row
+
                 Row(
                   children: [
                     Expanded(child: _StatCard(
@@ -1105,7 +1092,6 @@ class _TripCompleteSheetState extends State<_TripCompleteSheet>
                 ),
                 const SizedBox(height: 16),
 
-                // Payment method selector
                 Text(
                   'Metode Pembayaran',
                   style: GoogleFonts.plusJakartaSans(
@@ -1220,7 +1206,6 @@ class _TripCompleteSheetState extends State<_TripCompleteSheet>
                   ),
                 const SizedBox(height: 20),
 
-                // Rating section
                 if (!_ratingSubmitted) ...[
                   Text(
                     'Beri Rating untuk ${widget.driverName}',

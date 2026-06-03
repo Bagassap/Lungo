@@ -1,7 +1,7 @@
 import Redis from 'ioredis';
 
-const TTL_SECONDS      = 5 * 60;  // OTP valid 5 menit
-const BLOCK_TTL        = 15 * 60; // Blokir 15 menit setelah 3x salah
+const TTL_SECONDS      = 5 * 60;
+const BLOCK_TTL        = 15 * 60;
 const MAX_OTP_ATTEMPTS = 3;
 
 const redis = new Redis({
@@ -18,7 +18,7 @@ redis.on('error', (err) => {
 });
 
 class OtpStore {
-  // Normalisasi key agar 08x, 62x, +62x, 8x semua map ke key yang sama
+
   private normalize(phone: string): string {
     const digits = phone.replace(/\D/g, '');
     return digits.startsWith('0')  ? '62' + digits.slice(1)
@@ -33,7 +33,7 @@ class OtpStore {
 
   async setOtp(phone: string, otp: string): Promise<void> {
     await redis.setex(this.key(phone), TTL_SECONDS, otp);
-    // Reset attempt counter saat OTP baru dikirim
+
     await redis.del(this.attemptKey(phone));
   }
 
@@ -45,7 +45,6 @@ class OtpStore {
     await redis.del(this.key(phone));
   }
 
-  // Brute force protection
   async isBlocked(phone: string): Promise<{ blocked: boolean; ttl: number }> {
     const ttl = await redis.ttl(this.blockKey(phone));
     return { blocked: ttl > 0, ttl };

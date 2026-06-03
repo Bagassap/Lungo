@@ -115,7 +115,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
       resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // Background gradient
+
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -131,7 +131,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
             ),
           ),
 
-          // Decorative circles
           Positioned(
             top: -60,
             right: -40,
@@ -157,7 +156,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
             ),
           ),
 
-          // Logo + back button (upper area)
           Positioned(
             top: 0,
             left: 0,
@@ -207,7 +205,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
             ),
           ),
 
-          // Bottom card
           Align(
             alignment: Alignment.bottomCenter,
             child: AnimatedPadding(
@@ -245,7 +242,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Handle bar
+
                               Center(
                                 child: Container(
                                   width: 40,

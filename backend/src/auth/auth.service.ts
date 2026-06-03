@@ -175,7 +175,7 @@ export class AuthService {
   }
 
   async verifyOtp(dto: VerifyOtpDto) {
-    // Cek apakah nomor HP sedang diblokir karena salah OTP berkali-kali
+
     const { blocked, ttl } = await otpStore.isBlocked(dto.phone);
     if (blocked) {
       const menit = Math.ceil(ttl / 60);
@@ -200,8 +200,6 @@ export class AuthService {
     await otpStore.clearAttempts(dto.phone);
     await otpStore.deleteOtp(dto.phone);
 
-    // Verified users (fully registered) always see the role picker so they
-    // can choose which role to enter — even if they currently have only one.
     const verifiedUsers = users.filter((u) => u.isVerified && u.name && u.role);
     if (verifiedUsers.length > 0) {
       const availableRoles = verifiedUsers.map((u) => u.role).filter(Boolean) as string[];
@@ -212,7 +210,6 @@ export class AuthService {
       return { multipleRoles: true, availableRoles, phone: dto.phone, tempToken };
     }
 
-    // No verified user found — new registration flow
     const user = users[0];
     const isNewUser = !user.name || !user.role;
 
@@ -250,8 +247,6 @@ export class AuthService {
 
     let user = await this.usersRepo.findOne({ where: { phone, role: role as UserRole } });
 
-    // Auto-create PASSENGER account if the user is switching from DRIVER and
-    // no PASSENGER entity exists yet for this phone number.
     if (!user && role === UserRole.PASSENGER) {
       const source = await this.usersRepo.findOne({ where: { phone } });
       if (!source) throw new NotFoundException('Akun tidak ditemukan untuk nomor ini');

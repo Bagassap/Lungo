@@ -7,13 +7,12 @@ import { json, urlencoded } from 'express';
 import { join } from 'path';
 import * as fs from 'fs';
 import helmet from 'helmet';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+
 const hpp = require('hpp') as () => any;
 import { v4 as uuidv4 } from 'uuid';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './filters/all-exceptions.filter';
 
-// ── Suspicious request patterns ───────────────────────────────────────────────
 const SUSPICIOUS_PATTERNS = [
   /(\%27)|(\')|(\-\-)|(\%23)/i,   // SQL injection basics
   /<script[\s>]/i,                  // XSS script tag
@@ -23,7 +22,6 @@ const SUSPICIOUS_PATTERNS = [
   /SLEEP\s*\(\d/i,                  // SQL time-based
   /javascript:/i,                   // JS injection
 ];
-
 
 async function bootstrap() {
   const uploadsDir = join(process.cwd(), 'uploads', 'drivers');

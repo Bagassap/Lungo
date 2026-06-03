@@ -26,7 +26,6 @@ class LocationService {
 
     final granted = await _checkPermission();
     if (!granted) {
-      debugPrint('[LocationService] GPS permission denied');
       return;
     }
 
@@ -53,9 +52,7 @@ class LocationService {
         });
         debugPrint(
             '[LocationService] ${pos.latitude}, ${pos.longitude}');
-      } catch (e) {
-        debugPrint('[LocationService] GPS error: $e');
-      }
+      } catch (_) {}
     });
   }
 

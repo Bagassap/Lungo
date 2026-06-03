@@ -67,7 +67,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
     final originLng = _parseDouble(_rideData['originLng'], 107.6066);
     _pickupPos = LatLng(originLat, originLng);
 
-    // Connect driver chat so messages sync immediately
     if (_rideId.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -99,13 +98,12 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
         'latitude': _driverPos.latitude,
         'longitude': _driverPos.longitude,
       });
-      // Join ride room so we receive rideCancelled scoped to this ride
+
       if (_rideId.isNotEmpty) {
         _socket!.emit('joinRide', {'rideId': _rideId});
       }
     });
 
-    // If passenger cancels while driver is navigating to pickup, go back home
     _socket!.on('rideCancelled', (data) {
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
@@ -206,7 +204,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // Map
+
           FlutterMap(
             mapController: _mapCtrl,
             options: MapOptions(
@@ -291,7 +289,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
             ],
           ),
 
-          // Gradient overlay
           Positioned(
             bottom: 0, left: 0, right: 0, height: 260,
             child: IgnorePointer(
@@ -310,7 +307,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
             ),
           ),
 
-          // Top nav bar
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -384,7 +380,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
             ),
           ),
 
-          // Re-center button (shown when user has panned/zoomed away)
           if (_userInteracted)
             Positioned(
               bottom: 220, right: 16,
@@ -412,7 +407,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
               ),
             ),
 
-          // Bottom card
           Positioned(
             bottom: 0, left: 0, right: 0,
             child: Container(
@@ -430,7 +424,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Drag handle
+
                   Center(
                     child: Container(
                       width: 40, height: 4,
@@ -442,7 +436,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
                     ),
                   ),
 
-                  // Passenger info row
                   Row(
                     children: [
                       Container(
@@ -498,7 +491,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Chat + Phone action buttons
                   Row(
                     children: [
                       Expanded(
@@ -533,7 +525,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Confirm pickup button
                   SizedBox(
                     width: double.infinity,
                     height: 56,

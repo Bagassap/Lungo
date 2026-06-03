@@ -19,7 +19,6 @@ import '../providers/booking_provider.dart';
 
 final _idrFmt = NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0);
 
-// ── Type icons ───────────────────────────────────────────────────────────────
 IconData _typeIcon(String type) => switch (type) {
       'restaurant' || 'food_court' => Icons.restaurant_rounded,
       'fast_food'                   => Icons.fastfood_rounded,
@@ -62,7 +61,6 @@ Color _typeColor(String type) => switch (type) {
 
 Color _typeBg(String type) => _typeColor(type).withValues(alpha: 0.12);
 
-// ── Category shortcuts ───────────────────────────────────────────────────────
 const _kCategories = [
   ('Makan',      Icons.restaurant_rounded,       'warung'),
   ('Sekolah',    Icons.school_rounded,            'sekolah'),
@@ -126,7 +124,6 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     super.dispose();
   }
 
-  // ── GPS ──────────────────────────────────────────────────────────────────────
   Future<void> _initGps() async {
     final locState = ref.read(locationProvider);
     if (locState.loaded && locState.lat != null) {
@@ -150,7 +147,6 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     } catch (_) {}
   }
 
-  // ── SharedPreferences ────────────────────────────────────────────────────────
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     final recentRaw = prefs.getStringList(_kRecentKey)    ?? [];
@@ -196,7 +192,6 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     await prefs.setStringList(_kFavoritesKey, updated.map((x) => jsonEncode(x.toJson())).toList());
   }
 
-  // ── Search ───────────────────────────────────────────────────────────────────
   void _onChanged(String q) {
     _debounce?.cancel();
     _activeCategory = null;
@@ -244,7 +239,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
         _showConfirmationCard(place);
       }
     });
-    // Fetch route in background
+
     _fetchRoute();
   }
 
@@ -261,7 +256,6 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     _focus.requestFocus();
   }
 
-  // ── Fare & route ─────────────────────────────────────────────────────────────
   int _estimateFare(double distKm) => math.max(14000, (distKm * 2100).round());
 
   Future<void> _fetchRoute() async {
@@ -275,7 +269,6 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     if (mounted) setState(() { _routePoints = route; _loadingRoute = false; });
   }
 
-  // ── Tap peta ─────────────────────────────────────────────────────────────────
   void _enterMapTapMode() {
     setState(() {
       _mapTapMode  = true;
@@ -290,7 +283,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
 
   Future<void> _onMapTap(TapPosition _, LatLng pos) async {
     if (!_mapTapMode) return;
-    // Dismiss any open confirmation sheet so user can pick a new location
+
     if (_sheetIsOpen && mounted) {
       Navigator.of(context).pop();
       _sheetIsOpen = false;
@@ -309,20 +302,20 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
       _selected    = place;
       _ctrl.text   = 'Lokasi di Peta';
       _routePoints = [];
-      // Keep _mapTapMode = true so user can re-tap for a different spot
+
     });
     if (mounted) _showConfirmationCard(place);
-    _fetchRoute(); // background — route loads after card appears
+    _fetchRoute();
   }
 
   void _showConfirmationCard(SearchResult place) {
-    final isMapTap = _mapTapMode; // capture so sheet knows its origin
+    final isMapTap = _mapTapMode;
     _sheetIsOpen = true;
     final dist = place.distanceTo(_originLat, _originLng);
     final fare = _estimateFare(dist);
     showModalBottomSheet<void>(
       context: context,
-      isDismissible: true,   // allow backdrop tap to dismiss and re-tap map
+      isDismissible: true,
       enableDrag: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -380,7 +373,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            // Distance & fare estimate row
+
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
@@ -443,7 +436,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
               onPressed: () {
                 Navigator.pop(ctx);
                 if (isMapTap) {
-                  // Stay in map tap mode — user can tap a different spot
+
                   setState(() { _selected = null; _routePoints = []; });
                 } else {
                   setState(() { _selected = null; _ctrl.clear(); _activeCategory = null; _routePoints = []; });
@@ -461,7 +454,6 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     ).whenComplete(() { _sheetIsOpen = false; });
   }
 
-  // ── Book ride ────────────────────────────────────────────────────────────────
   Future<void> _bookRide() async {
     final dest = _selected;
     if (dest == null || _isBooking) return;
@@ -502,7 +494,6 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     }
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final hasText     = _ctrl.text.trim().length >= 2;
@@ -535,7 +526,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
         children: [
           Column(
             children: [
-              // Search bar
+
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
                 child: Container(
@@ -583,7 +574,6 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
 
               const SizedBox(height: 8),
 
-              // Category shortcuts
               SizedBox(
                 height: 40,
                 child: ListView.separated(
@@ -649,7 +639,6 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
             ],
           ),
 
-          // Confirm button overlay when map shown with selection
           if (showMap && _selected != null && !_mapTapMode)
             Positioned(
               left: 16, right: 16, bottom: 24,
@@ -674,7 +663,6 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     );
   }
 
-  // ── Full-screen map tap mode ─────────────────────────────────────────────────
   Widget _buildFullMapTapMode() {
     return Scaffold(
       body: Stack(
@@ -761,7 +749,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
               ),
             ),
           ),
-          // Crosshair center overlay
+
           const Center(
             child: Icon(Icons.add_rounded, color: AppColors.primaryColor, size: 32),
           ),
@@ -770,12 +758,11 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     );
   }
 
-  // ── Home state ───────────────────────────────────────────────────────────────
   Widget _buildHomeState() {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       children: [
-        // Tap peta button
+
         GestureDetector(
           onTap: _enterMapTapMode,
           child: Container(
@@ -873,7 +860,6 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     );
   }
 
-  // ── Results list ─────────────────────────────────────────────────────────────
   Widget _buildResults() {
     if (_searching) {
       return const Column(
@@ -914,12 +900,10 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     );
   }
 
-  // ── Map view (with route) ────────────────────────────────────────────────────
   Widget _buildMapView() {
     final dest = _selected!;
     final hasRoute = _routePoints.length >= 2;
 
-    // Compute bounds center
     final centerLat = (_originLat + dest.lat) / 2;
     final centerLng = (_originLng + dest.lng) / 2;
 
@@ -932,7 +916,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
           flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
         ),
         onTap: (tp, pt) {
-          // In normal map view, tapping repositions destination
+
           final newPlace = SearchResult(
             name:     'Lokasi di Peta',
             address:  '${pt.latitude.toStringAsFixed(5)}, ${pt.longitude.toStringAsFixed(5)}',
@@ -953,7 +937,6 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
           maxNativeZoom: 19, maxZoom: 19,
         ),
 
-        // Route polyline
         PolylineLayer(polylines: [
           if (hasRoute)
             Polyline(
@@ -973,7 +956,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
         ]),
 
         MarkerLayer(markers: [
-          // Origin pin
+
           Marker(
             point: LatLng(_originLat, _originLng),
             width: 44, height: 44,
@@ -987,7 +970,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
               child: const Icon(Icons.my_location_rounded, color: Colors.white, size: 20),
             ),
           ),
-          // Destination pin
+
           Marker(
             point: LatLng(dest.lat, dest.lng),
             width: 52, height: 64,
@@ -1015,7 +998,6 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
   }
 }
 
-// ── Fare chip ─────────────────────────────────────────────────────────────────
 class _FareChip extends StatelessWidget {
   final IconData icon;
   final String   label;
@@ -1040,7 +1022,6 @@ class _FareChip extends StatelessWidget {
   );
 }
 
-// ── Result tile ───────────────────────────────────────────────────────────────
 class _ResultTile extends StatelessWidget {
   final SearchResult result;
   final bool         isFavorite;
@@ -1150,7 +1131,6 @@ class _ResultTile extends StatelessWidget {
       address.split(',').take(3).map((s) => s.trim()).join(', ');
 }
 
-// ── Section header ────────────────────────────────────────────────────────────
 class _SectionHeader extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -1167,7 +1147,6 @@ class _SectionHeader extends StatelessWidget {
   );
 }
 
-// ── Confirm button overlay ────────────────────────────────────────────────────
 class _ConfirmButton extends StatelessWidget {
   final SearchResult place;
   final double       originLat;
@@ -1243,7 +1222,7 @@ class _ConfirmButton extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          // Estimates row
+
           Row(
             children: [
               _FareChip(icon: Icons.route_rounded, label: '${dist.toStringAsFixed(1)} km', color: AppColors.primaryColor),

@@ -248,7 +248,6 @@ class _HomeState extends ConsumerState<PassengerHomeScreen>
   }
 
   Future<void> _returnToTrip() async {
-    debugPrint('[Passenger] _returnToTrip dipanggil');
 
     if (ref.read(bookingProvider).ride != null) {
       await ref.read(bookingProvider.notifier).refreshRide();
@@ -260,19 +259,16 @@ class _HomeState extends ConsumerState<PassengerHomeScreen>
     final ride = booking.ride;
 
     if (ride == null) {
-      debugPrint('[Passenger] ride null setelah refresh, abort');
       return;
     }
 
     final status = ride.status.toUpperCase();
-    debugPrint('[Passenger] ride status dari API: $status');
 
     if (!mounted) return;
 
     switch (status) {
       case 'ONGOING':
         ref.read(bookingProvider.notifier).setActive(rideStatus: 'ONGOING');
-        debugPrint('[Passenger] _returnToTrip → /trip rideId=${ride.id} driver=${ride.driverName}');
         Navigator.pushNamed(context, '/trip', arguments: TripArgs(
           rideId: ride.id,
           initialStatus: 'ONGOING',
@@ -300,7 +296,6 @@ class _HomeState extends ConsumerState<PassengerHomeScreen>
             arguments: {'rideId': ride.id, 'restore': false});
         break;
       default:
-        debugPrint('[Passenger] status tidak dikenal: $status, reset');
         ref.read(bookingProvider.notifier).reset();
         await SecureStorage.clearPassengerRideId();
     }
@@ -737,7 +732,6 @@ class _BottomSheet extends StatelessWidget {
         ),
       );
 }
-
 
 class _OjekButton extends StatefulWidget {
   final VoidCallback onTap;

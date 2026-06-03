@@ -84,7 +84,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        debugPrint('[MainScreen] back button ditekan, diabaikan (canPop=false)');
       },
       child: Scaffold(
       body: Column(
@@ -112,7 +111,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                         final ride = ref.read(bookingProvider).ride;
                         if (ride == null || !context.mounted) return;
                         final status = ride.status.toUpperCase();
-                        debugPrint('[MainScreen] chip onTap status dari API: $status driver=${ride.driverName}');
                         if (status == 'ONGOING') {
                           Navigator.pushNamed(context, '/trip', arguments: TripArgs(
                             rideId: ride.id,

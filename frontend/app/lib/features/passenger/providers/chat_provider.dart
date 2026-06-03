@@ -216,7 +216,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   void disconnect() {
     _disconnectSocket();
-    // Preserve messages and currentRideId for history display
+
   }
 
   @override

@@ -3,10 +3,12 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class SecureStorage {
   static const _storage = FlutterSecureStorage(
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+      resetOnError: false,
+    ),
   );
 
-  // Token keys
   static const _keyAccessToken          = 'access_token';
   static const _keyRefreshToken         = 'refresh_token';
   static const _keyUserId               = 'user_id';
@@ -15,13 +17,9 @@ class SecureStorage {
   static const _keyUserRole             = 'user_role';
   static const _keySubscriptionPaidUntil = 'subscription_paid_until';
 
-  // DRIVER ride key — BERBEDA dari passenger
   static const _keyDriverRideId    = 'driver_active_ride_id';
 
-  // PASSENGER ride key — BERBEDA dari driver
   static const _keyPassengerRideId = 'passenger_active_ride_id';
-
-  // ── Token methods ──────────────────────────────────────────────────────────
 
   static Future<void> saveTokens({
     required String accessToken,
@@ -61,8 +59,6 @@ class SecureStorage {
     return token != null && token.isNotEmpty;
   }
 
-  // ── Subscription ───────────────────────────────────────────────────────────
-
   static Future<void> saveSubscriptionPaidUntil(DateTime date) =>
       _storage.write(key: _keySubscriptionPaidUntil, value: date.toIso8601String());
 
@@ -78,8 +74,6 @@ class SecureStorage {
     return DateTime.now().isBefore(until);
   }
 
-  // ── DRIVER ride methods ────────────────────────────────────────────────────
-
   static Future<void> saveDriverRideId(String rideId) =>
       _storage.write(key: _keyDriverRideId, value: rideId);
 
@@ -88,8 +82,6 @@ class SecureStorage {
 
   static Future<void> clearDriverRideId() =>
       _storage.delete(key: _keyDriverRideId);
-
-  // ── PASSENGER ride methods ─────────────────────────────────────────────────
 
   static Future<void> savePassengerRideId(String rideId) =>
       _storage.write(key: _keyPassengerRideId, value: rideId);
@@ -100,10 +92,7 @@ class SecureStorage {
   static Future<void> clearPassengerRideId() =>
       _storage.delete(key: _keyPassengerRideId);
 
-  // ── Clear all (saat logout) ────────────────────────────────────────────────
-
   static Future<void> clearAll() => _storage.deleteAll();
 
-  // Keep old name for backward compat with any code not yet updated
   static Future<void> clear() => _storage.deleteAll();
 }

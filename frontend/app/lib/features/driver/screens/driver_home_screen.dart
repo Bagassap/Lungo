@@ -221,7 +221,7 @@ class _DriverHomeState extends ConsumerState<DriverHomeScreen>
           }
         });
       }
-      // Passenger requested to cancel — show approval dialog
+
       if (prev != null && !prev.cancelRequested && next.cancelRequested) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _showCancelApprovalDialog(context, ref.read(driverProvider.notifier));
@@ -343,7 +343,6 @@ class _DriverHomeState extends ConsumerState<DriverHomeScreen>
             ),
           ),
 
-          // Request card ditampilkan sebagai Positioned.fill agar bisa center vertikal
           if (ds.phase == DriverRidePhase.request)
             Positioned.fill(
               child: _RequestNotificationCard(
@@ -395,7 +394,6 @@ class _DriverMap extends StatelessWidget {
     final isOnTrip     = phase == DriverRidePhase.onTrip;
     final hasRoute     = routePoints.length >= 2;
 
-    // Split route into traveled (gray) and remaining (blue) for onTrip phase
     int closestIdx = 0;
     if (hasRoute && isOnTrip) {
       double minDist = double.infinity;
@@ -453,7 +451,6 @@ class _DriverMap extends StatelessWidget {
               color: AppColors.online.withValues(alpha: 0.6),
             ),
 
-          // onTrip: gray for traveled portion, blue for remaining
           if (isOnTrip && activeTrip != null && activeTrip!.hasDestination) ...[
             if (traveledPts.length >= 2)
               Polyline(
@@ -1204,7 +1201,7 @@ class _RequestNotificationCardState
 
     return Stack(
       children: [
-        // Backdrop blur dengan fade-in
+
         Positioned.fill(
           child: FadeTransition(
             opacity: _fadeAnim,
@@ -1216,7 +1213,7 @@ class _RequestNotificationCardState
             ),
           ),
         ),
-        // Card center vertikal dan horizontal
+
         Positioned.fill(
           child: Center(
             child: SlideTransition(
@@ -1652,8 +1649,6 @@ class _RequestNotificationCardState
   }
 }
 
-
-// ── Trip phase stepper ────────────────────────────────────────────────────────
 class _TripPhaseSteps extends StatelessWidget {
   final bool isNavigating, isAtPickup, isOnTrip;
   const _TripPhaseSteps({
@@ -1715,7 +1710,6 @@ class _TripPhaseSteps extends StatelessWidget {
   }
 }
 
-// ── Route origin → destination card ──────────────────────────────────────────
 class _TripRouteCard extends StatelessWidget {
   final String originAddress, destinationAddress;
   const _TripRouteCard({required this.originAddress, required this.destinationAddress});
@@ -1912,7 +1906,6 @@ class _ActiveTripBarState extends State<_ActiveTripBar> {
     );
   }
 
-  // ── Collapsed strip ──────────────────────────────────────────────────────────
   Widget _buildCollapsed(
     DriverState ds,
     String phaseLabel, String phaseSub, IconData phaseIcon,
@@ -1999,7 +1992,6 @@ class _ActiveTripBarState extends State<_ActiveTripBar> {
     );
   }
 
-  // ── Expanded full card ───────────────────────────────────────────────────────
   Widget _buildExpanded(
     DriverState ds,
     bool isNavigating, bool isAtPickup, bool isOnTrip,
@@ -2014,7 +2006,6 @@ class _ActiveTripBarState extends State<_ActiveTripBar> {
       mainAxisSize: MainAxisSize.min,
       children: [
 
-        // ── Dark header with phase info ─────────────────────────────────────
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -2028,7 +2019,7 @@ class _ActiveTripBarState extends State<_ActiveTripBar> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Drag handle row
+
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                 GestureDetector(
                   onTap: () => setState(() => _expanded = false),
@@ -2049,7 +2040,7 @@ class _ActiveTripBarState extends State<_ActiveTripBar> {
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                // Phase badge
+
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
@@ -2069,9 +2060,8 @@ class _ActiveTripBarState extends State<_ActiveTripBar> {
 
               const SizedBox(height: 14),
 
-              // Passenger row
               Row(children: [
-                // Avatar
+
                 Container(
                   width: 52, height: 52,
                   decoration: BoxDecoration(
@@ -2116,18 +2106,15 @@ class _ActiveTripBarState extends State<_ActiveTripBar> {
           ),
         ),
 
-        // ── White body ─────────────────────────────────────────────────────
         Padding(
           padding: EdgeInsets.fromLTRB(20, 14, 20, 16 + bottomPad),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
 
-              // Phase stepper
               _TripPhaseSteps(isNavigating: isNavigating, isAtPickup: isAtPickup, isOnTrip: isOnTrip),
               const SizedBox(height: 12),
 
-              // Route card
               if (ds.activeTrip != null) ...[
                 _TripRouteCard(
                   originAddress: ds.activeTrip!.originAddress ?? 'Titik penjemputan',
@@ -2136,13 +2123,11 @@ class _ActiveTripBarState extends State<_ActiveTripBar> {
                 const SizedBox(height: 10),
               ],
 
-              // Digital argo meter
               if (isOnTrip && ds.argo != null) ...[
                 _DigitalMeter(argo: ds.argo!),
                 const SizedBox(height: 10),
               ],
 
-              // Distance warning
               if (isOnTrip && distToDestM != null && !canEndTrip) ...[
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -2165,7 +2150,6 @@ class _ActiveTripBarState extends State<_ActiveTripBar> {
                 const SizedBox(height: 10),
               ],
 
-              // Primary action button — gradient style
               GestureDetector(
                 onTap: (isOnTrip && !canEndTrip) ? null : onPressed,
                 child: AnimatedContainer(
@@ -2202,7 +2186,6 @@ class _ActiveTripBarState extends State<_ActiveTripBar> {
                 ),
               ),
 
-              // Navigation button
               if ((isNavigating || isAtPickup || isOnTrip) && ds.activeTrip != null) ...[
                 const SizedBox(height: 8),
                 SizedBox(
@@ -2230,7 +2213,6 @@ class _ActiveTripBarState extends State<_ActiveTripBar> {
                 ),
               ],
 
-              // Cancel button
               if ((isNavigating || isAtPickup) && ds.activeTrip != null)
                 Center(
                   child: TextButton.icon(
@@ -2252,8 +2234,6 @@ class _ActiveTripBarState extends State<_ActiveTripBar> {
   }
 }
 
-
-// ── Digital argo meter ────────────────────────────────────────────────────────
 class _DigitalMeter extends StatelessWidget {
   final DriverArgo argo;
   const _DigitalMeter({required this.argo});

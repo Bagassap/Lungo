@@ -149,7 +149,7 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
       itemBuilder: (_, i) {
         final msg = _messages[i];
         final isPassenger = msg.senderRole == 'PASSENGER';
-        // Show date separator when date changes
+
         final showDate = i == 0 ||
             !_sameDay(_messages[i - 1].createdAt, msg.createdAt);
         return Column(

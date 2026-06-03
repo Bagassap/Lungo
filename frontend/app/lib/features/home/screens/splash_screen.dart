@@ -62,7 +62,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         authState.user != null) {
       Navigator.pushReplacementNamed(context, '/register');
     } else {
-      // Jika ada active ride, jangan paksa ke /login — biarkan user kembali ke trip
+
       final hasActiveRide =
           (await SecureStorage.getPassengerRideId()) != null ||
           (await SecureStorage.getDriverRideId()) != null;

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/storage/secure_storage.dart';
 import '../models/ride_model.dart';
@@ -130,7 +129,6 @@ class BookingNotifier extends StateNotifier<BookingState> {
 
   void setActive({String rideStatus = 'ONGOING'}) {
     if (state.ride != null) {
-      debugPrint('[Booking] setActive: rideStatus=$rideStatus');
       state = state.copyWith(
         status: BookingStatus.active,
         ride: state.ride!.copyWith(status: rideStatus),
@@ -148,27 +146,22 @@ class BookingNotifier extends StateNotifier<BookingState> {
     if (rideId == null || rideId.isEmpty) return;
     try {
       final ride = await _service.getRide(rideId);
-      debugPrint('[Booking] restore: status=${ride.status} driverId=${ride.driverId}');
       final newStatus = _mapStatus(ride.status);
       if (newStatus == BookingStatus.completed ||
           newStatus == BookingStatus.cancelled ||
           newStatus == BookingStatus.idle) {
-        debugPrint('[Booking] restore: SKIP — status terminal (${ride.status}), clearing storage');
         await SecureStorage.clearPassengerRideId();
         return;
       }
-      // ACCEPTED/PICKUP/ONGOING tanpa driverId = state korup, jangan restore
+
       final isValidToRestore = newStatus != BookingStatus.active ||
           (ride.driverId != null && ride.driverId!.isNotEmpty);
-      debugPrint('[Booking] restore: valid=$isValidToRestore');
       if (!isValidToRestore) {
-        debugPrint('[Booking] restore: SKIP — status active tapi driverId null, clearing storage');
         await SecureStorage.clearPassengerRideId();
         return;
       }
       state = state.copyWith(status: newStatus, ride: ride);
     } catch (e) {
-      debugPrint('[Booking] restore: ERROR — $e, clearing storage');
       await SecureStorage.clearPassengerRideId();
     }
   }

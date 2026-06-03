@@ -200,7 +200,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
       resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // Background gradient
+
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -216,7 +216,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
             ),
           ),
 
-          // Decorative circles
           Positioned(
             top: -60,
             right: -40,
@@ -230,7 +229,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
             ),
           ),
 
-          // Logo + back button (upper area)
           Positioned(
             top: 0,
             left: 0,
@@ -243,7 +241,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Back button
+
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Padding(
@@ -281,7 +279,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
             ),
           ),
 
-          // Bottom card
           Align(
             alignment: Alignment.bottomCenter,
             child: AnimatedPadding(
@@ -315,7 +312,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Handle bar
+
                           Center(
                             child: Container(
                               width: 40,
@@ -364,7 +361,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
                           ),
                           const SizedBox(height: 28),
 
-                          // OTP boxes
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: List.generate(6, _buildOtpBox),
@@ -436,13 +432,11 @@ class _RolePickerSheet extends StatelessWidget {
     'ADMIN':     (Icons.admin_panel_settings_rounded, 'Admin', Color(0xFF7C3AED)),
   };
 
-  // Hanya PASSENGER yang bisa di-auto-create oleh backend melalui selectRole.
-  // DRIVER butuh proses registrasi + approval admin, jadi tidak bisa langsung ditambahkan.
   static const _addableRoles = ['PASSENGER'];
 
   @override
   Widget build(BuildContext context) {
-    // Role baru yang belum dimiliki user (selain ADMIN)
+
     final newRoles = _addableRoles.where((r) => !roles.contains(r)).toList();
 
     return Container(
@@ -480,7 +474,6 @@ class _RolePickerSheet extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // Akun yang sudah terdaftar
           ...roles.map((role) {
             final cfg = _cfg[role] ?? (Icons.person_rounded, role, AppColors.primaryColor);
             return GestureDetector(
@@ -518,7 +511,6 @@ class _RolePickerSheet extends StatelessWidget {
             );
           }),
 
-          // Opsi daftar akun baru (jika ada role yang belum dimiliki)
           if (newRoles.isNotEmpty) ...[
             if (roles.isNotEmpty) ...[
               const SizedBox(height: 4),

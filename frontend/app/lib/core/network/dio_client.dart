@@ -54,9 +54,7 @@ class _AuthInterceptor extends Interceptor {
           }
         }
       } catch (_) {}
-      // Do NOT clear SecureStorage here — this client is used by background
-      // services (e.g. FCM token upload) that should not invalidate the
-      // user's auth session on failure.
+
     }
     handler.next(err);
   }

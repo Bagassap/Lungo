@@ -207,7 +207,7 @@ class DriverChatNotifier extends StateNotifier<DriverChatState> {
 
   void disconnect() {
     _disconnectSocket();
-    // Preserve messages and currentRideId for history display
+
   }
 
   @override

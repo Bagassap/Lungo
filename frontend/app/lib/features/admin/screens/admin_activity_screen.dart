@@ -730,11 +730,12 @@ class _TripsTabState extends State<_TripsTab> {
   bool _loading = true;
   List<Map<String, dynamic>> _trips = [];
   String _filter = 'Semua';
-  final _filters = ['Semua', 'ONGOING', 'DONE', 'CANCELLED'];
+  final _filters = ['Semua', 'AKTIF', 'DONE', 'CANCELLED'];
   final _filterLabels = {
-    'Semua': 'Semua', 'ONGOING': 'Berlangsung',
+    'Semua': 'Semua', 'AKTIF': 'Aktif',
     'DONE': 'Selesai', 'CANCELLED': 'Dibatalkan'
   };
+  static const _activeStatuses = {'SEARCHING', 'ACCEPTED', 'PICKUP', 'ONGOING'};
 
   @override
   void initState() { super.initState(); _load(); }
@@ -742,7 +743,7 @@ class _TripsTabState extends State<_TripsTab> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final r = await _dio.get('/admin/trips', queryParameters: {'limit': '50'});
+      final r = await _dio.get('/admin/trips', queryParameters: {'limit': '100'});
       final list = (r.data['rides'] as List?) ?? [];
       setState(() {
         _trips = list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
@@ -755,11 +756,16 @@ class _TripsTabState extends State<_TripsTab> {
 
   List<Map<String, dynamic>> get _filtered {
     if (_filter == 'Semua') return _trips;
+    if (_filter == 'AKTIF') return _trips.where((t) => _activeStatuses.contains(t['status'])).toList();
     return _trips.where((t) => t['status'] == _filter).toList();
   }
 
   Color _statusColor(String s) => switch (s) {
+    'AKTIF'     => _C.primary,
     'ONGOING'   => _C.primary,
+    'ACCEPTED'  => _C.green,
+    'PICKUP'    => _C.green,
+    'SEARCHING' => _C.orange,
     'DONE'      => _C.green,
     'CANCELLED' => _C.red,
     _           => _C.dark,
@@ -767,7 +773,7 @@ class _TripsTabState extends State<_TripsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final ongoing   = _trips.where((t) => t['status'] == 'ONGOING').length;
+    final ongoing   = _trips.where((t) => _activeStatuses.contains(t['status'])).length;
     final done      = _trips.where((t) => t['status'] == 'DONE').length;
     final cancelled = _trips.where((t) => t['status'] == 'CANCELLED').length;
 
