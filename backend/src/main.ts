@@ -14,13 +14,13 @@ import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './filters/all-exceptions.filter';
 
 const SUSPICIOUS_PATTERNS = [
-  /(\%27)|(\')|(\-\-)|(\%23)/i,   // SQL injection basics
-  /<script[\s>]/i,                  // XSS script tag
-  /\.\.[\/\\]/,                     // Path traversal
-  /union\s+select/i,                // SQL union
-  /exec\s*\(.*xp_/i,               // SQL exec
-  /SLEEP\s*\(\d/i,                  // SQL time-based
-  /javascript:/i,                   // JS injection
+  /(\%27)|(\')|(\-\-)|(\%23)/i,
+  /<script[\s>]/i,
+  /\.\.[\/\\]/,
+  /union\s+select/i,
+  /exec\s*\(.*xp_/i,
+  /SLEEP\s*\(\d/i,
+  /javascript:/i,
 ];
 
 async function bootstrap() {
@@ -30,18 +30,16 @@ async function bootstrap() {
   }
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    bodyParser: false, // kita set sendiri agar bisa batasi ukuran
+    bodyParser: false,
   });
 
   const isProd = process.env.NODE_ENV === 'production';
 
-  // ── Payload size limit (1 MB) ─────────────────────────────────────────────
   app.use(json({ limit: '1mb' }));
   app.use(urlencoded({ extended: true, limit: '1mb' }));
 
-  // ── Security headers (Helmet) ─────────────────────────────────────────────
   app.use(helmet({
-    contentSecurityPolicy: false,       // REST API tidak butuh CSP
+    contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: true,
     crossOriginOpenerPolicy: true,
     crossOriginResourcePolicy: { policy: 'same-origin' },
@@ -57,7 +55,6 @@ async function bootstrap() {
     xssFilter: true,
   }));
 
-  // ── Additional headers ────────────────────────────────────────────────────
   app.use((_req: any, res: any, next: any) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
@@ -67,17 +64,14 @@ async function bootstrap() {
     next();
   });
 
-  // ── Anti parameter pollution ──────────────────────────────────────────────
   app.use(hpp());
 
-  // ── Request ID tracker ────────────────────────────────────────────────────
   app.use((req: any, res: any, next: any) => {
     req['requestId'] = uuidv4();
     res.setHeader('X-Request-ID', req['requestId']);
     next();
   });
 
-  // ── Request logger (no sensitive data) ───────────────────────────────────
   app.use((req: any, res: any, next: any) => {
     const start = Date.now();
     res.on('finish', () => {
@@ -97,7 +91,6 @@ async function bootstrap() {
     next();
   });
 
-  // ── Suspicious activity detector (query & params only) ────────────────────
   app.use((req: any, res: any, next: any) => {
     const check = JSON.stringify({ q: req.query, p: req.params });
     if (SUSPICIOUS_PATTERNS.some((rx) => rx.test(check))) {
@@ -112,7 +105,6 @@ async function bootstrap() {
     next();
   });
 
-  // ── CORS (whitelist via env) ──────────────────────────────────────────────
   const allowedOrigins = (process.env.CORS_ORIGINS ?? '')
     .split(',')
     .map((o) => o.trim())
@@ -120,7 +112,6 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin: string | undefined, cb: (e: Error | null, ok?: boolean) => void) => {
-      // Mobile apps tidak kirim Origin — izinkan
       if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
         cb(null, true);
       } else {
@@ -143,10 +134,8 @@ async function bootstrap() {
     }),
   );
 
-  // ── Global exception filter ───────────────────────────────────────────────
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // ── Swagger (hanya non-production) ───────────────────────────────────────
   if (!isProd) {
     const config = new DocumentBuilder()
       .setTitle('Lungo API')
