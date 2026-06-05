@@ -256,7 +256,20 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     _focus.requestFocus();
   }
 
-  int _estimateFare(double distKm) => math.max(14000, (distKm * 2100).round());
+  int _localFare(double distKm) => math.max(14000, (distKm * 2100).round());
+
+  Future<Map<String, dynamic>?> _fetchFareApi(double km) async {
+    try {
+      final res = await DioClient.create().get('/tariff/estimate', queryParameters: {
+        'lat': _originLat,
+        'lng': _originLng,
+        'km': km,
+      });
+      return res.data as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<void> _fetchRoute() async {
     final dest = _selected;
@@ -311,8 +324,13 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
   void _showConfirmationCard(SearchResult place) {
     final isMapTap = _mapTapMode;
     _sheetIsOpen = true;
-    final dist = place.distanceTo(_originLat, _originLng);
-    final fare = _estimateFare(dist);
+    final dist      = place.distanceTo(_originLat, _originLng);
+    var   fare      = _localFare(dist);
+    var   zonaLabel = '';
+    var   tarifKm   = 0;
+    var   feeLungoAmt = 0;
+    var   fareLoaded  = false;
+
     showModalBottomSheet<void>(
       context: context,
       isDismissible: true,
@@ -320,136 +338,179 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE5E7EB),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) {
+          if (!fareLoaded) {
+            fareLoaded = true;
+            _fetchFareApi(dist).then((data) {
+              if (data != null && ctx.mounted) {
+                setModal(() {
+                  fare        = (data['farePassenger'] as num).toInt();
+                  zonaLabel   = data['namaZona'] as String? ?? '';
+                  tarifKm     = (data['tarifPerKm'] as num).toInt();
+                  feeLungoAmt = (data['feeLungo']   as num).toInt();
+                });
+              }
+            });
+          }
+
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 44, height: 44,
+                  width: 40, height: 4,
                   decoration: BoxDecoration(
-                    color: _typeBg(place.type),
+                    color: const Color(0xFFE5E7EB),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 44, height: 44,
+                      decoration: BoxDecoration(
+                        color: _typeBg(place.type),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(_typeIcon(place.type), color: _typeColor(place.type), size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            place.name,
+                            style: const TextStyle(
+                              fontFamily: 'Satoshi', fontWeight: FontWeight.w700,
+                              fontSize: 16, color: Color(0xFF0D1240),
+                            ),
+                            maxLines: 2, overflow: TextOverflow.ellipsis,
+                          ),
+                          if (place.address.isNotEmpty) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              place.address,
+                              style: const TextStyle(
+                                fontFamily: 'Satoshi', fontSize: 12, color: Color(0xFF6B7280),
+                              ),
+                              maxLines: 2, overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(_typeIcon(place.type), color: _typeColor(place.type), size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Text(
-                        place.name,
-                        style: const TextStyle(
-                          fontFamily: 'Satoshi', fontWeight: FontWeight.w700,
-                          fontSize: 16, color: Color(0xFF0D1240),
-                        ),
-                        maxLines: 2, overflow: TextOverflow.ellipsis,
+                      _FareChip(
+                        icon: Icons.route_rounded,
+                        label: '${dist.toStringAsFixed(1)} km',
+                        color: AppColors.primaryColor,
                       ),
-                      if (place.address.isNotEmpty) ...[
-                        const SizedBox(height: 3),
+                      const SizedBox(width: 8),
+                      _FareChip(
+                        icon: Icons.payments_rounded,
+                        label: _idrFmt.format(fare),
+                        color: AppColors.online,
+                      ),
+                      const SizedBox(width: 8),
+                      _FareChip(
+                        icon: Icons.access_time_rounded,
+                        label: '~${(dist * 3).round().clamp(1, 60)} menit',
+                        color: AppColors.secondaryColor,
+                      ),
+                    ],
+                  ),
+                ),
+
+                if (zonaLabel.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0F4FF),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(children: [
+                          const Icon(Icons.map_outlined, size: 13, color: Color(0xFF6B7280)),
+                          const SizedBox(width: 4),
+                          Text(zonaLabel, style: const TextStyle(fontFamily: 'Satoshi', fontSize: 11, color: Color(0xFF6B7280))),
+                        ]),
                         Text(
-                          place.address,
-                          style: const TextStyle(
-                            fontFamily: 'Satoshi', fontSize: 12, color: Color(0xFF6B7280),
-                          ),
-                          maxLines: 2, overflow: TextOverflow.ellipsis,
+                          'Rp ${NumberFormat('#,###', 'id_ID').format(tarifKm)}/km  +  Rp ${NumberFormat('#,###', 'id_ID').format(feeLungoAmt)} fee',
+                          style: const TextStyle(fontFamily: 'Satoshi', fontSize: 11, color: Color(0xFF9CA3AF)),
                         ),
                       ],
-                    ],
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 4),
+                Text(
+                  'Tarif estimasi Kemenhub — bisa berubah sesuai jarak aktual',
+                  style: const TextStyle(
+                    fontFamily: 'Satoshi', fontSize: 10, color: Color(0xFF9CA3AF),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _bookRide();
+                    },
+                    icon: const Icon(Icons.electric_moped_rounded, size: 18),
+                    label: const Text(
+                      'Pesan Ojek ke Sini',
+                      style: TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w700, fontSize: 16),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accentColor,
+                      foregroundColor: AppColors.primaryDark,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    if (isMapTap) {
+                      setState(() { _selected = null; _routePoints = []; });
+                    } else {
+                      setState(() { _selected = null; _ctrl.clear(); _activeCategory = null; _routePoints = []; });
+                      _focus.requestFocus();
+                    }
+                  },
+                  child: const Text(
+                    'Pilih Lokasi Lain',
+                    style: TextStyle(fontFamily: 'Satoshi', fontSize: 14, color: Color(0xFF9CA3AF)),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.primaryLight,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  _FareChip(
-                    icon: Icons.route_rounded,
-                    label: '${dist.toStringAsFixed(1)} km',
-                    color: AppColors.primaryColor,
-                  ),
-                  const SizedBox(width: 8),
-                  _FareChip(
-                    icon: Icons.payments_rounded,
-                    label: _idrFmt.format(fare),
-                    color: AppColors.online,
-                  ),
-                  const SizedBox(width: 8),
-                  _FareChip(
-                    icon: Icons.access_time_rounded,
-                    label: '~${(dist * 3).round().clamp(1, 60)} menit',
-                    color: AppColors.secondaryColor,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Tarif estimasi — bisa berubah sesuai jarak aktual',
-              style: const TextStyle(
-                fontFamily: 'Satoshi', fontSize: 10, color: Color(0xFF9CA3AF),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _bookRide();
-                },
-                icon: const Icon(Icons.electric_moped_rounded, size: 18),
-                label: const Text(
-                  'Pesan Ojek ke Sini',
-                  style: TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w700, fontSize: 16),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accentColor,
-                  foregroundColor: AppColors.primaryDark,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  elevation: 0,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                if (isMapTap) {
-
-                  setState(() { _selected = null; _routePoints = []; });
-                } else {
-                  setState(() { _selected = null; _ctrl.clear(); _activeCategory = null; _routePoints = []; });
-                  _focus.requestFocus();
-                }
-              },
-              child: const Text(
-                'Pilih Lokasi Lain',
-                style: TextStyle(fontFamily: 'Satoshi', fontSize: 14, color: Color(0xFF9CA3AF)),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     ).whenComplete(() { _sheetIsOpen = false; });
   }
@@ -649,6 +710,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
                 isFavorite: _favoriteKeys.contains(_selected!.coordKey),
                 isLoading: _isBooking || _loadingRoute,
                 onConfirm: _bookRide,
+                fetchFareApi: _fetchFareApi,
                 onFavorite: () => _toggleFavorite(_selected!),
               ),
             ),
@@ -1147,7 +1209,7 @@ class _SectionHeader extends StatelessWidget {
   );
 }
 
-class _ConfirmButton extends StatelessWidget {
+class _ConfirmButton extends StatefulWidget {
   final SearchResult place;
   final double       originLat;
   final double       originLng;
@@ -1155,6 +1217,7 @@ class _ConfirmButton extends StatelessWidget {
   final VoidCallback onConfirm;
   final VoidCallback onFavorite;
   final bool         isLoading;
+  final Future<Map<String, dynamic>?> Function(double km) fetchFareApi;
 
   const _ConfirmButton({
     required this.place,
@@ -1164,12 +1227,47 @@ class _ConfirmButton extends StatelessWidget {
     required this.onConfirm,
     required this.onFavorite,
     required this.isLoading,
+    required this.fetchFareApi,
   });
 
   @override
+  State<_ConfirmButton> createState() => _ConfirmButtonState();
+}
+
+class _ConfirmButtonState extends State<_ConfirmButton> {
+  int?    _apiFare;
+  String  _apiZona = '';
+  int     _tarifKm = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFare();
+  }
+
+  @override
+  void didUpdateWidget(_ConfirmButton old) {
+    super.didUpdateWidget(old);
+    if (old.place.coordKey != widget.place.coordKey) _loadFare();
+  }
+
+  Future<void> _loadFare() async {
+    final dist = widget.place.distanceTo(widget.originLat, widget.originLng);
+    final data = await widget.fetchFareApi(dist);
+    if (data != null && mounted) {
+      setState(() {
+        _apiFare = (data['farePassenger'] as num).toInt();
+        _apiZona = data['namaZona']  as String? ?? '';
+        _tarifKm = (data['tarifPerKm'] as num).toInt();
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final dist = place.distanceTo(originLat, originLng);
-    final fare = math.max(14000, (dist * 2100).round());
+    final dist      = widget.place.distanceTo(widget.originLat, widget.originLng);
+    final localFare = math.max(14000, (dist * 2100).round());
+    final fare      = _apiFare ?? localFare;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1186,8 +1284,8 @@ class _ConfirmButton extends StatelessWidget {
             children: [
               Container(
                 width: 40, height: 40,
-                decoration: BoxDecoration(color: _typeBg(place.type), borderRadius: BorderRadius.circular(11)),
-                child: Icon(_typeIcon(place.type), color: _typeColor(place.type), size: 20),
+                decoration: BoxDecoration(color: _typeBg(widget.place.type), borderRadius: BorderRadius.circular(11)),
+                child: Icon(_typeIcon(widget.place.type), color: _typeColor(widget.place.type), size: 20),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -1195,13 +1293,13 @@ class _ConfirmButton extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      place.name,
+                      widget.place.name,
                       style: const TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0D1240)),
                       maxLines: 1, overflow: TextOverflow.ellipsis,
                     ),
-                    if (place.address.isNotEmpty)
+                    if (widget.place.address.isNotEmpty)
                       Text(
-                        place.address.split(',').first.trim(),
+                        widget.place.address.split(',').first.trim(),
                         style: const TextStyle(fontFamily: 'Satoshi', fontSize: 11, color: Color(0xFF9CA3AF)),
                         maxLines: 1, overflow: TextOverflow.ellipsis,
                       ),
@@ -1209,13 +1307,13 @@ class _ConfirmButton extends StatelessWidget {
                 ),
               ),
               GestureDetector(
-                onTap: onFavorite,
+                onTap: widget.onFavorite,
                 child: Padding(
                   padding: const EdgeInsets.only(left: 8),
                   child: Icon(
-                    isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
+                    widget.isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
                     size: 24,
-                    color: isFavorite ? const Color(0xFFD97706) : const Color(0xFFD1D5DB),
+                    color: widget.isFavorite ? const Color(0xFFD97706) : const Color(0xFFD1D5DB),
                   ),
                 ),
               ),
@@ -1230,16 +1328,35 @@ class _ConfirmButton extends StatelessWidget {
               _FareChip(icon: Icons.payments_rounded, label: NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(fare), color: AppColors.online),
             ],
           ),
+
+          if (_apiZona.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(children: [
+                  const Icon(Icons.map_outlined, size: 12, color: Color(0xFF9CA3AF)),
+                  const SizedBox(width: 4),
+                  Text(_apiZona, style: const TextStyle(fontFamily: 'Satoshi', fontSize: 11, color: Color(0xFF6B7280))),
+                ]),
+                Text(
+                  'Rp ${NumberFormat('#,###', 'id_ID').format(_tarifKm)}/km',
+                  style: const TextStyle(fontFamily: 'Satoshi', fontSize: 11, color: Color(0xFF9CA3AF)),
+                ),
+              ],
+            ),
+          ],
+
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: isLoading ? null : onConfirm,
-              icon: isLoading
+              onPressed: widget.isLoading ? null : widget.onConfirm,
+              icon: widget.isLoading
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                   : const Icon(Icons.electric_moped_rounded, size: 18),
               label: Text(
-                isLoading ? 'Memproses...' : 'Pesan Ojek ke Sini',
+                widget.isLoading ? 'Memproses...' : 'Pesan Ojek ke Sini',
                 style: const TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w700, fontSize: 15),
               ),
               style: ElevatedButton.styleFrom(

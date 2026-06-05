@@ -13,6 +13,7 @@ import { TrackingService } from '../tracking/tracking.service';
 import { TrackingGateway } from '../tracking/tracking.gateway';
 import { FcmService } from './fcm.service';
 import { TariffService } from '../tariff/tariff.service';
+import { ZonaService } from '../tariff/zona.service';
 import { WalletService } from '../wallet/wallet.service';
 import { User } from '../users/entities/user.entity';
 import { Driver } from '../drivers/entities/driver.entity';
@@ -44,6 +45,7 @@ export class BookingService {
     private readonly trackingGateway: TrackingGateway,
     private readonly fcmService: FcmService,
     private readonly tariffService: TariffService,
+    private readonly zonaService: ZonaService,
     private readonly walletService: WalletService,
   ) {}
 
@@ -70,6 +72,13 @@ export class BookingService {
       this.haversine(dto.originLat, dto.originLng, dto.destinationLat, dto.destinationLng) * 10,
     ) / 10;
 
+    const zonaFare = this.zonaService.hitungTarif(distKm, dto.originLat, dto.originLng);
+    ride.zona         = zonaFare.zona;
+    ride.fareDriver   = zonaFare.fareDriver;
+    ride.farePassenger = zonaFare.farePassenger;
+    ride.feeLungo     = zonaFare.feeLungo;
+    await this.rideRepo.save(ride);
+
     const passenger = await this.userRepo.findOne({ where: { id: dto.passengerId } });
 
     const ridePayload = {
@@ -78,7 +87,7 @@ export class BookingService {
       originLng:          dto.originLng,
       destinationLat:     dto.destinationLat,
       destinationLng:     dto.destinationLng,
-      estimatedFare:      this.tariffService.calculate(distKm),
+      estimatedFare:      zonaFare.farePassenger,
       distanceKm:         distKm,
       passengerName:      passenger?.name || passenger?.phone || 'Penumpang',
       passengerRating:    4.8,
@@ -205,10 +214,17 @@ export class BookingService {
       Number(ride.destinationLng),
     );
 
-    const fare = this.tariffService.calculate(distanceKm);
-    ride.status = RideStatus.DONE;
-    ride.distanceKm = Math.round(distanceKm * 1000) / 1000;
-    ride.fare = fare;
+    const zonaFare    = this.zonaService.hitungTarif(distanceKm, Number(ride.originLat), Number(ride.originLng));
+    const fareDriver  = zonaFare.fareDriver;
+    const fare        = zonaFare.farePassenger;
+
+    ride.status        = RideStatus.DONE;
+    ride.distanceKm    = Math.round(distanceKm * 1000) / 1000;
+    ride.fare          = fare;
+    ride.zona          = zonaFare.zona;
+    ride.fareDriver    = fareDriver;
+    ride.farePassenger = fare;
+    ride.feeLungo      = zonaFare.feeLungo;
     await this.rideRepo.save(ride);
 
     if (ride.driverId) {
@@ -222,8 +238,8 @@ export class BookingService {
       try {
         await this.walletService.credit(
           ride.driverId,
-          fare,
-          `Pendapatan trip — Rp ${fare.toLocaleString('id-ID')}`,
+          fareDriver,
+          `Pendapatan trip — Rp ${fareDriver.toLocaleString('id-ID')}`,
           ride.id,
         );
       } catch (_) {  }
@@ -231,14 +247,14 @@ export class BookingService {
       this.notifRepo.save(this.notifRepo.create({
         userId: ride.driverId,
         title: 'Perjalanan Selesai',
-        body: `Kamu mendapat Rp ${fare.toLocaleString('id-ID')}.`,
+        body: `Kamu mendapat Rp ${fareDriver.toLocaleString('id-ID')}.`,
         type: 'ride',
       }));
       this.fcmService.notifyDriver(
         ride.driverId,
         'Perjalanan Selesai ✅',
-        `Kamu mendapat Rp ${fare.toLocaleString('id-ID')}.`,
-        { rideId: ride.id, type: 'DRIVER_TRIP_DONE', fare: String(fare) },
+        `Kamu mendapat Rp ${fareDriver.toLocaleString('id-ID')}.`,
+        { rideId: ride.id, type: 'DRIVER_TRIP_DONE', fare: String(fareDriver) },
       );
     }
 

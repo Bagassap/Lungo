@@ -48,6 +48,18 @@ export class Ride {
   @Column({ type: 'int', nullable: true })
   passengerRating!: number | null;
 
+  @Column({ nullable: true, type: 'varchar' })
+  zona!: string | null;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  fareDriver!: number | null;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  farePassenger!: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  feeLungo!: number | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 

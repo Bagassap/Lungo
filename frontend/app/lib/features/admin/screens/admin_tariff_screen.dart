@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import '../../../core/network/api_client.dart';
 
 class AdminTariffScreen extends StatefulWidget {
@@ -19,12 +20,20 @@ class _AdminTariffScreenState extends State<AdminTariffScreen> {
   static const _shadow  = Color(0x180540F2);
 
   Map<String, dynamic>? _tariff;
+  List<Map<String, dynamic>> _zones = [];
   bool _loading = true;
   bool _saving  = false;
 
-  final _baseCtrl    = TextEditingController();
-  final _perKmCtrl   = TextEditingController();
-  final _perMinCtrl  = TextEditingController();
+  final _baseCtrl   = TextEditingController();
+  final _perKmCtrl  = TextEditingController();
+  final _perMinCtrl = TextEditingController();
+
+  final Map<String, TextEditingController> _zoneKmCtrls  = {};
+  final Map<String, TextEditingController> _zoneMinCtrls = {};
+  final Map<String, TextEditingController> _zoneFeeCtrls = {};
+  final Map<String, bool> _zoneSaving = {};
+
+  static final _idr = NumberFormat('#,###', 'id_ID');
 
   @override
   void initState() {
@@ -37,27 +46,71 @@ class _AdminTariffScreenState extends State<AdminTariffScreen> {
     _baseCtrl.dispose();
     _perKmCtrl.dispose();
     _perMinCtrl.dispose();
+    for (final c in _zoneKmCtrls.values)  c.dispose();
+    for (final c in _zoneMinCtrls.values) c.dispose();
+    for (final c in _zoneFeeCtrls.values) c.dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final resp = await ApiClient.create().get('/admin/tariff');
-      final d = resp.data as Map<String, dynamic>;
+      final results = await Future.wait([
+        ApiClient.create().get('/admin/tariff'),
+        ApiClient.create().get('/tariff/zones'),
+      ]);
+      final d     = results[0].data as Map<String, dynamic>;
+      final zones = (results[1].data as List<dynamic>)
+          .cast<Map<String, dynamic>>();
       setState(() {
-        _tariff = d;
-        _baseCtrl.text   = (d['basePrice']      as num?)?.toInt().toString()    ?? '14000';
-        _perKmCtrl.text  = (d['pricePerKm']     as num?)?.toInt().toString()    ?? '2100';
-        _perMinCtrl.text = (d['pricePerMinute'] as num?)?.toInt().toString()    ?? '500';
+        _tariff          = d;
+        _baseCtrl.text   = (d['basePrice']      as num?)?.toInt().toString() ?? '14000';
+        _perKmCtrl.text  = (d['pricePerKm']     as num?)?.toInt().toString() ?? '2100';
+        _perMinCtrl.text = (d['pricePerMinute'] as num?)?.toInt().toString() ?? '500';
+        _zones = zones;
+        for (final z in zones) {
+          final key = z['zona'] as String;
+          _zoneKmCtrls[key]  = TextEditingController(text: (z['tarifPerKm']        as num).toInt().toString());
+          _zoneMinCtrls[key] = TextEditingController(text: (z['tarifMinimalDriver'] as num).toInt().toString());
+          _zoneFeeCtrls[key] = TextEditingController(text: (z['feeLungo']           as num).toInt().toString());
+          _zoneSaving[key]   = false;
+        }
       });
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gagal memuat tarif')));
+            const SnackBar(content: Text('Gagal memuat tarif')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _saveZone(String zonaKey) async {
+    final km  = int.tryParse(_zoneKmCtrls[zonaKey]!.text.replaceAll('.', ''));
+    final min = int.tryParse(_zoneMinCtrls[zonaKey]!.text.replaceAll('.', ''));
+    final fee = int.tryParse(_zoneFeeCtrls[zonaKey]!.text.replaceAll('.', ''));
+    if (km == null || min == null || fee == null) return;
+
+    setState(() => _zoneSaving[zonaKey] = true);
+    try {
+      await ApiClient.create().put('/tariff/zones/$zonaKey', data: {
+        'tarifPerKm': km,
+        'tarifMinimalDriver': min,
+        'feeLungo': fee,
+      });
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Tarif zona diperbarui'), backgroundColor: Color(0xFF059669)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Gagal simpan tarif zona')));
+      }
+    } finally {
+      if (mounted) setState(() => _zoneSaving[zonaKey] = false);
     }
   }
 
@@ -166,12 +219,91 @@ class _AdminTariffScreenState extends State<AdminTariffScreen> {
   }
 
   Widget _buildBody() {
-    final history = _tariff?['history'] as List<dynamic>? ?? [];
+    final history   = _tariff?['history'] as List<dynamic>? ?? [];
     final updatedAt = _tariff?['updatedAt'] as String?;
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+
+        if (_zones.isNotEmpty) ...[
+          Text('Tarif 3 Zona Kemenhub',
+            style: GoogleFonts.plusJakartaSans(
+              fontWeight: FontWeight.w700, fontSize: 11,
+              letterSpacing: 1.0, color: const Color(0xFF7B8FC0))),
+          const SizedBox(height: 10),
+          ..._zones.map((z) {
+            final key      = z['zona'] as String;
+            final nama     = z['namaZona'] as String;
+            final wilayah  = z['wilayah'] as String;
+            final thresh   = (z['thresholdKm'] as num).toDouble();
+            final isSaving = _zoneSaving[key] ?? false;
+
+            final sim10km = (z['tarifMinimalDriver'] as num).toInt() +
+                ((10.0 - thresh).clamp(0, 100) * (z['tarifPerKm'] as num).toInt()).round() +
+                (z['feeLungo'] as num).toInt();
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFDDE3F5), width: 1),
+                boxShadow: const [BoxShadow(color: _shadow, blurRadius: 8, offset: Offset(0, 2))],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(6)),
+                        child: Text(nama, style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(wilayah, style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF9CA3AF)), overflow: TextOverflow.ellipsis),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Simulasi 10 km: Rp ${_idr.format(sim10km.clamp(0, 999999))}  •  Minimal: ${thresh.toStringAsFixed(1)} km',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF059669), fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    Expanded(child: _ZoneField('Tarif/km (Rp)', _zoneKmCtrls[key]!)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _ZoneField('Minimal (Rp)',  _zoneMinCtrls[key]!)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _ZoneField('Fee Lungo',     _zoneFeeCtrls[key]!)),
+                  ]),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: isSaving ? null : () => _saveZone(key),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      child: isSaving
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Text('Simpan $nama', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 13)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          const SizedBox(height: 8),
+        ],
 
         Container(
           padding: const EdgeInsets.all(20),
@@ -398,6 +530,47 @@ class _TariffField extends StatelessWidget {
             ),
             contentPadding: const EdgeInsets.symmetric(
                 horizontal: 14, vertical: 14),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ZoneField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  const _ZoneField(this.label, this.controller);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 10, fontWeight: FontWeight.w600,
+            color: const Color(0xFF7B8FC0))),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 12, fontWeight: FontWeight.w700,
+            color: const Color(0xFF0D1240)),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFFF0F4FF),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFF0540F2), width: 1.5),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            isDense: true,
           ),
         ),
       ],
