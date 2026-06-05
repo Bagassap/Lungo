@@ -187,6 +187,7 @@ class _TripScreenState extends ConsumerState<TripScreen>
           _timerStarted = true;
           _startLocalTimer();
         }
+        _redirectToGoogleMaps();
       }
     });
 
@@ -305,6 +306,50 @@ class _TripScreenState extends ConsumerState<TripScreen>
   Future<void> _makeCall(String phone) async {
     final uri = Uri(scheme: 'tel', path: phone);
     if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
+  Future<void> _redirectToGoogleMaps() async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Perjalanan dimulai! Membuka Google Maps...'),
+        duration: Duration(seconds: 2),
+        backgroundColor: Color(0xFF059669),
+      ),
+    );
+    await Future.delayed(const Duration(seconds: 1));
+    if (!mounted) return;
+    final lat = _destination.latitude;
+    final lng = _destination.longitude;
+    final navUri = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
+    try {
+      await launchUrl(navUri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      await launchUrl(
+        Uri.parse(
+          'https://www.google.com/maps/dir/?api=1'
+          '&destination=$lat,$lng&travelmode=driving&dir_action=navigate',
+        ),
+        mode: LaunchMode.externalApplication,
+      );
+    }
+  }
+
+  Future<void> _openMapsAgain() async {
+    final lat = _destination.latitude;
+    final lng = _destination.longitude;
+    final navUri = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
+    try {
+      await launchUrl(navUri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      await launchUrl(
+        Uri.parse(
+          'https://www.google.com/maps/dir/?api=1'
+          '&destination=$lat,$lng&travelmode=driving&dir_action=navigate',
+        ),
+        mode: LaunchMode.externalApplication,
+      );
+    }
   }
 
   void _openChat() {
@@ -881,6 +926,25 @@ class _TripScreenState extends ConsumerState<TripScreen>
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _openMapsAgain,
+              icon: const Icon(Icons.navigation_rounded, size: 16),
+              label: const Text(
+                'Buka Google Maps',
+                style: TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w700, fontSize: 14),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0540F2),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                elevation: 0,
+              ),
             ),
           ),
         ],

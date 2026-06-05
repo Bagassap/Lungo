@@ -327,7 +327,14 @@ class _DriverHomeState extends ConsumerState<DriverHomeScreen>
                           key: const ValueKey('active'),
                           ds: ds,
                           onArrivedAtPickup: notifier.arrivedAtPickup,
-                          onStartTrip: notifier.startTrip,
+                          onStartTrip: () async {
+                            await notifier.startTrip();
+                            final trip = ref.read(driverProvider).activeTrip;
+                            if (trip != null) {
+                              await _launchGoogleMaps(
+                                trip.destinationLat, trip.destinationLng);
+                            }
+                          },
                           onEndTrip: notifier.endTrip,
                           onCancelRide: notifier.cancelRide,
                         )
