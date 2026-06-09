@@ -63,6 +63,7 @@ class _TripScreenState extends ConsumerState<TripScreen>
   Timer? _localTimer;
   Timer? _offlineCheckTimer;
   Timer? _locationTimer;
+  Timer? _pollTimer;
   bool _tripCompleted = false;
   String _passengerId = '';
   bool _initialized = false;
@@ -129,12 +130,32 @@ class _TripScreenState extends ConsumerState<TripScreen>
     if (_phase != _TripPhase.ongoing) _fetchRoute();
     _startOfflineCheck();
     _startPassengerLocationUpdates();
+    _startPollTimer();
 
     if (_rideId.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) ref.read(chatProvider.notifier).connect(_rideId);
       });
     }
+  }
+
+  void _startPollTimer() {
+    if (_rideId.isEmpty) return;
+    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+      if (!mounted || _tripCompleted) return;
+      try {
+        final resp = await ApiClient.create().get('/booking/rides/$_rideId');
+        final status = resp.data['status'] as String? ?? '';
+        if (status == 'DONE' || status == 'CANCELLED') {
+          final m = Map<String, dynamic>.from(resp.data as Map);
+          final dist = num.tryParse(m['distanceKm']?.toString() ?? '')?.toDouble();
+          final fare = num.tryParse(m['farePassenger']?.toString() ?? '')?.toDouble();
+          if (dist != null && mounted) setState(() => _distanceKm = dist);
+          if (fare != null && mounted) setState(() => _currentFare = fare);
+          _showTripCompleteSheet();
+        }
+      } catch (_) {}
+    });
   }
 
   void _startPassengerLocationUpdates() {
@@ -191,6 +212,12 @@ class _TripScreenState extends ConsumerState<TripScreen>
           _startLocalTimer();
         }
         _redirectToGoogleMaps();
+      } else if (status == 'DONE') {
+        final dist = num.tryParse(map['distanceKm']?.toString() ?? '')?.toDouble();
+        final fare = num.tryParse(map['finalFare']?.toString() ?? '')?.toDouble();
+        if (dist != null) setState(() => _distanceKm = dist);
+        if (fare != null) setState(() => _currentFare = fare);
+        _showTripCompleteSheet();
       }
     });
 
@@ -364,6 +391,7 @@ class _TripScreenState extends ConsumerState<TripScreen>
       _socket?.emit('leaveRide', {'rideId': _rideId});
     }
     _socket?.disconnect();
+    _pollTimer?.cancel();
     super.dispose();
   }
 

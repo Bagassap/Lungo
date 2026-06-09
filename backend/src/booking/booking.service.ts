@@ -227,6 +227,20 @@ export class BookingService {
     ride.feeLungo      = zonaFare.feeLungo;
     await this.rideRepo.save(ride);
 
+    // Emit WebSocket ke room ride agar passenger detect DONE (fallback dari socket endRide)
+    this.trackingGateway.server.to(`ride:${rideId}`).emit('rideEnded', {
+      rideId,
+      distanceKm: ride.distanceKm,
+      finalFare: fare,
+      fareDriver,
+      feeLungo: zonaFare.feeLungo,
+    });
+    this.trackingGateway.notifyRideStatusChanged(rideId, 'DONE', {
+      distanceKm: ride.distanceKm,
+      finalFare: fare,
+      fareDriver,
+    });
+
     if (ride.driverId) {
       await this.driverRepo
         .createQueryBuilder()
