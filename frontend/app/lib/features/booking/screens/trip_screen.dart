@@ -117,13 +117,16 @@ class _TripScreenState extends ConsumerState<TripScreen>
         _phase = _TripPhase.ongoing;
         _timerStarted = true;
         _startLocalTimer();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _redirectToGoogleMaps();
+        });
       }
     }
 
     _passengerId = ref.read(authProvider).user?.id ?? '';
 
     _connectSocket();
-    _fetchRoute();
+    if (_phase != _TripPhase.ongoing) _fetchRoute();
     _startOfflineCheck();
     _startPassengerLocationUpdates();
 
@@ -319,36 +322,21 @@ class _TripScreenState extends ConsumerState<TripScreen>
     );
     await Future.delayed(const Duration(seconds: 1));
     if (!mounted) return;
-    final lat = _destination.latitude;
-    final lng = _destination.longitude;
-    final navUri = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
-    try {
-      await launchUrl(navUri, mode: LaunchMode.externalApplication);
-    } catch (_) {
-      await launchUrl(
-        Uri.parse(
-          'https://www.google.com/maps/dir/?api=1'
-          '&destination=$lat,$lng&travelmode=driving&dir_action=navigate',
-        ),
-        mode: LaunchMode.externalApplication,
-      );
-    }
+    await _openGoogleMaps();
   }
 
-  Future<void> _openMapsAgain() async {
+  Future<void> _openGoogleMaps() async {
     final lat = _destination.latitude;
     final lng = _destination.longitude;
     final navUri = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
-    try {
+    final webUri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1'
+      '&destination=$lat,$lng&travelmode=driving&dir_action=navigate',
+    );
+    if (await canLaunchUrl(navUri)) {
       await launchUrl(navUri, mode: LaunchMode.externalApplication);
-    } catch (_) {
-      await launchUrl(
-        Uri.parse(
-          'https://www.google.com/maps/dir/?api=1'
-          '&destination=$lat,$lng&travelmode=driving&dir_action=navigate',
-        ),
-        mode: LaunchMode.externalApplication,
-      );
+    } else {
+      await launchUrl(webUri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -434,6 +422,7 @@ class _TripScreenState extends ConsumerState<TripScreen>
       child: Scaffold(
       body: Stack(
         children: [
+          if (!isOngoing)
           RepaintBoundary(
             child: FlutterMap(
               mapController: _mapController,
@@ -525,7 +514,44 @@ class _TripScreenState extends ConsumerState<TripScreen>
                 ]),
               ],
             ),
-          ),
+          )
+          else
+            Container(
+              color: const Color(0xFFF0F4FF),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 100, height: 100,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0540F2).withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.navigation_rounded,
+                        size: 52, color: Color(0xFF0540F2),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Perjalanan Berlangsung',
+                      style: TextStyle(
+                        fontFamily: 'Satoshi', fontWeight: FontWeight.w700,
+                        fontSize: 20, color: Color(0xFF0B0940),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Driver sedang mengantar Anda ke tujuan',
+                      style: TextStyle(
+                        fontFamily: 'Satoshi', fontSize: 14, color: Color(0xFF6B7280),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           if (_driverOffline)
             Positioned(
@@ -932,7 +958,7 @@ class _TripScreenState extends ConsumerState<TripScreen>
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _openMapsAgain,
+              onPressed: _openGoogleMaps,
               icon: const Icon(Icons.navigation_rounded, size: 16),
               label: const Text(
                 'Buka Google Maps',
