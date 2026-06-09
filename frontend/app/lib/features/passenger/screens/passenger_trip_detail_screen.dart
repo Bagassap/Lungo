@@ -1388,7 +1388,7 @@ class _StatBox extends StatelessWidget {
 
 class _FareCard extends StatelessWidget {
   final double fare, distanceKm;
-  static const double _base  = 14000;
+  static const double _base  = 14500;
   static const double _perKm = 2100;
 
   const _FareCard({required this.fare, required this.distanceKm});

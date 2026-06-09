@@ -256,7 +256,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     _focus.requestFocus();
   }
 
-  int _localFare(double distKm) => math.max(14000, (distKm * 2100).round());
+  int _localFare(double distKm) => math.max(14500, (distKm * 2100).round());
 
   Future<Map<String, dynamic>?> _fetchFareApi(double km) async {
     try {
@@ -1266,7 +1266,7 @@ class _ConfirmButtonState extends State<_ConfirmButton> {
   @override
   Widget build(BuildContext context) {
     final dist      = widget.place.distanceTo(widget.originLat, widget.originLng);
-    final localFare = math.max(14000, (dist * 2100).round());
+    final localFare = math.max(14500, (dist * 2100).round());
     final fare      = _apiFare ?? localFare;
 
     return Container(

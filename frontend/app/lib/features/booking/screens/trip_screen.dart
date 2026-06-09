@@ -75,7 +75,7 @@ class _TripScreenState extends ConsumerState<TripScreen>
 
   _TripPhase _phase = _TripPhase.accepted;
   int _elapsedSeconds = 0;
-  double _currentFare = 14000;
+  double _currentFare = 14500;
   double _distanceKm = 0;
 
   String _rideId      = '';
@@ -183,7 +183,7 @@ class _TripScreenState extends ConsumerState<TripScreen>
       } else if (status == 'ONGOING' && _phase != _TripPhase.ongoing) {
         setState(() {
           _phase = _TripPhase.ongoing;
-          _currentFare = 14000;
+          _currentFare = 14500;
           _distanceKm = 0;
         });
         if (!_timerStarted) {
