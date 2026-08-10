@@ -10,7 +10,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/services/fcm_service.dart';
-import '../../../core/storage/secure_storage.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/lungo_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -83,19 +82,11 @@ class _DriverHomeState extends ConsumerState<DriverHomeScreen>
     _initGps();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(driverProvider.notifier).checkStaleState();
-      _checkSubscription();
       final pendingAccept = FcmService.consumePendingDriverAccept();
       if (pendingAccept != null) {
         ref.read(driverProvider.notifier).acceptRideFromNotification(pendingAccept);
       }
     });
-  }
-
-  Future<void> _checkSubscription() async {
-    final active = await SecureStorage.isSubscriptionActive();
-    if (!active && mounted) {
-      Navigator.pushNamed(context, '/driver/subscription');
-    }
   }
 
   @override

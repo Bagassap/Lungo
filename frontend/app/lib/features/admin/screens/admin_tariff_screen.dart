@@ -46,9 +46,9 @@ class _AdminTariffScreenState extends State<AdminTariffScreen> {
     _baseCtrl.dispose();
     _perKmCtrl.dispose();
     _perMinCtrl.dispose();
-    for (final c in _zoneKmCtrls.values)  c.dispose();
-    for (final c in _zoneMinCtrls.values) c.dispose();
-    for (final c in _zoneFeeCtrls.values) c.dispose();
+    for (final c in _zoneKmCtrls.values)  { c.dispose(); }
+    for (final c in _zoneMinCtrls.values) { c.dispose(); }
+    for (final c in _zoneFeeCtrls.values) { c.dispose(); }
     super.dispose();
   }
 
