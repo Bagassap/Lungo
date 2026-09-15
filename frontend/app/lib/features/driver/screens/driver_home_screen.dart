@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -14,6 +15,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/lungo_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../shared/providers/nav_tab_provider.dart';
+import '../../shared/widgets/trip/map_pin_marker.dart';
+import '../../shared/widgets/trip/tracking_timeline.dart';
+import '../../shared/widgets/trip/trip_tracking_card.dart';
 import '../providers/driver_provider.dart';
 import '../providers/driver_chat_provider.dart';
 
@@ -477,21 +481,10 @@ class _DriverMap extends StatelessWidget {
 
           Marker(
             point: pos, width: 56, height: 56,
-            child: Container(
-              decoration: BoxDecoration(
-                color: isOnline ? AppColors.online : AppColors.offline,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 3),
-                boxShadow: [
-                  BoxShadow(
-                    color: (isOnline ? AppColors.online : AppColors.offline)
-                        .withValues(alpha: 0.5),
-                    blurRadius: 14, spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.electric_moped_rounded,
-                  color: Colors.white, size: 26),
+            child: MapPinMarker(
+              icon: Icons.electric_moped_rounded,
+              fillColor: isOnline ? AppColors.online : AppColors.offline,
+              size: 56,
             ),
           ),
 
@@ -499,14 +492,10 @@ class _DriverMap extends StatelessWidget {
             Marker(
               point: LatLng(pendingReq!.originLat, pendingReq!.originLng),
               width: 42, height: 42,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.primaryColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: const Icon(Icons.person_pin_circle_rounded,
-                    color: Colors.white, size: 20),
+              child: const MapPinMarker(
+                icon: Icons.person_pin_circle_rounded,
+                fillColor: AppColors.primaryColor,
+                size: 42,
               ),
             ),
 
@@ -514,20 +503,10 @@ class _DriverMap extends StatelessWidget {
             Marker(
               point: passengerPosition ?? LatLng(activeTrip!.originLat, activeTrip!.originLng),
               width: 44, height: 44,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.primaryColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryColor.withValues(alpha: 0.4),
-                      blurRadius: 10,
-                    ),
-                  ],
-                ),
-                child: const Icon(Icons.person_pin_circle_rounded,
-                    color: Colors.white, size: 22),
+              child: const MapPinMarker(
+                icon: Icons.person_pin_circle_rounded,
+                fillColor: AppColors.primaryColor,
+                size: 44,
               ),
             ),
 
@@ -535,20 +514,12 @@ class _DriverMap extends StatelessWidget {
             Marker(
               point: LatLng(activeTrip!.destinationLat, activeTrip!.destinationLng),
               width: 44, height: 44,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.accentColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.primaryDark, width: 2.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.accentColor.withValues(alpha: 0.5),
-                      blurRadius: 10,
-                    ),
-                  ],
-                ),
-                child: const Icon(Icons.location_on_rounded,
-                    color: AppColors.primaryDark, size: 22),
+              child: const MapPinMarker(
+                icon: Icons.flag_rounded,
+                fillColor: AppColors.accentColor,
+                borderColor: AppColors.primaryDark,
+                iconColor: AppColors.primaryDark,
+                size: 44,
               ),
             ),
         ]),
@@ -1647,117 +1618,6 @@ class _RequestNotificationCardState
   }
 }
 
-class _TripPhaseSteps extends StatelessWidget {
-  final bool isNavigating, isAtPickup, isOnTrip;
-  const _TripPhaseSteps({
-    required this.isNavigating,
-    required this.isAtPickup,
-    required this.isOnTrip,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final steps = [
-      (label: 'Jemput', icon: Icons.electric_moped_rounded, done: true),
-      (label: 'Tiba',   icon: Icons.location_on_rounded,    done: isAtPickup || isOnTrip),
-      (label: 'Jalan',  icon: Icons.navigation_rounded,     done: isOnTrip),
-    ];
-    return Row(
-      children: List.generate(steps.length * 2 - 1, (i) {
-        if (i.isOdd) {
-          final done = steps[(i - 1) ~/ 2].done;
-          return Expanded(
-            child: Container(
-              height: 2,
-              margin: const EdgeInsets.only(bottom: 18),
-              decoration: BoxDecoration(
-                color: done ? AppColors.primaryColor : AppColors.primaryLight,
-                borderRadius: BorderRadius.circular(1),
-              ),
-            ),
-          );
-        }
-        final step   = steps[i ~/ 2];
-        final isCurr = (i == 0 && isNavigating) ||
-                       (i == 2 && isAtPickup)    ||
-                       (i == 4 && isOnTrip);
-        return Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 34, height: 34,
-            decoration: BoxDecoration(
-              color: step.done ? AppColors.primaryColor : AppColors.primaryLight,
-              shape: BoxShape.circle,
-              boxShadow: isCurr
-                  ? [BoxShadow(
-                      color: AppColors.primaryColor.withValues(alpha: 0.35),
-                      blurRadius: 8,
-                    )]
-                  : null,
-            ),
-            child: Icon(step.icon,
-                color: step.done ? Colors.white : AppColors.textSecondary, size: 16),
-          ),
-          const SizedBox(height: 4),
-          Text(step.label, style: TextStyle(
-            fontFamily: 'Satoshi', fontSize: 10, fontWeight: FontWeight.w600,
-            color: step.done ? AppColors.primaryColor : AppColors.textSecondary,
-          )),
-        ]);
-      }),
-    );
-  }
-}
-
-class _TripRouteCard extends StatelessWidget {
-  final String originAddress, destinationAddress;
-  const _TripRouteCard({required this.originAddress, required this.destinationAddress});
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-    decoration: BoxDecoration(
-      color: AppColors.primaryLight.withValues(alpha: 0.45),
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: Column(children: [
-      Row(children: [
-        Container(
-          width: 8, height: 8,
-          decoration: const BoxDecoration(
-              color: AppColors.primaryColor, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 10),
-        Expanded(child: Text(originAddress, maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontFamily: 'Satoshi', fontSize: 12,
-                fontWeight: FontWeight.w600, color: AppColors.textPrimary))),
-      ]),
-      Padding(
-        padding: const EdgeInsets.only(left: 3),
-        child: SizedBox(
-          height: 12,
-          child: VerticalDivider(
-              color: AppColors.primaryColor.withValues(alpha: 0.3), thickness: 1.5),
-        ),
-      ),
-      Row(children: [
-        Container(
-          width: 8, height: 8,
-          decoration: BoxDecoration(
-            color: AppColors.accentColor,
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.primaryDark, width: 1.5),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(child: Text(destinationAddress, maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontFamily: 'Satoshi', fontSize: 12,
-                fontWeight: FontWeight.w600, color: AppColors.textPrimary))),
-      ]),
-    ]),
-  );
-}
 
 Future<void> _launchGoogleMaps(double lat, double lng) async {
   final navUri = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
@@ -1791,6 +1651,33 @@ class _ActiveTripBar extends StatefulWidget {
 
 class _ActiveTripBarState extends State<_ActiveTripBar> {
   bool _expanded = true;
+
+  DateTime? _tsAtPickup;
+  DateTime? _tsOnTrip;
+
+  @override
+  void didUpdateWidget(covariant _ActiveTripBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldPhase = oldWidget.ds.phase;
+    final newPhase = widget.ds.phase;
+    if (oldPhase != newPhase) {
+      if (newPhase == DriverRidePhase.atPickup) _tsAtPickup ??= DateTime.now();
+      if (newPhase == DriverRidePhase.onTrip) _tsOnTrip ??= DateTime.now();
+    }
+  }
+
+  List<TrackingStep> _timelineSteps(bool isAtPickup, bool isOnTrip) => [
+        const TrackingStep(label: 'Pesanan Dibuat', done: true),
+        const TrackingStep(label: 'Driver Diterima', done: true),
+        const TrackingStep(label: 'Driver Menuju Lokasi', done: true),
+        TrackingStep(
+            label: 'Penjemputan',
+            timestamp: _tsAtPickup,
+            done: isAtPickup || isOnTrip),
+        TrackingStep(
+            label: 'Dalam Perjalanan', timestamp: _tsOnTrip, done: isOnTrip),
+        const TrackingStep(label: 'Selesai', done: false),
+      ];
 
   Future<void> _showCancelConfirm(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -1998,128 +1885,86 @@ class _ActiveTripBarState extends State<_ActiveTripBar> {
     double? distToDestM, bool canEndTrip,
     VoidCallback onPressed, String passengerName, String initial,
   ) {
-    final bottomPad = MediaQuery.of(context).padding.bottom;
+    final rideId = ds.activeTrip?.rideId;
+
+    final String statusText;
+    final Color statusColor;
+    if (isNavigating) {
+      statusText = 'Menuju';
+      statusColor = AppColors.secondaryColor;
+    } else if (isAtPickup) {
+      statusText = 'Tiba';
+      statusColor = AppColors.online;
+    } else {
+      statusText = 'Berjalan';
+      statusColor = AppColors.primaryColor;
+    }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
 
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [const Color(0xFF0B0940), btnColor.withValues(alpha: 0.85)],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                GestureDetector(
-                  onTap: () => setState(() => _expanded = false),
-                  child: Container(
-                    width: 34, height: 34,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.keyboard_arrow_down_rounded,
-                        color: Colors.white, size: 20),
-                  ),
-                ),
-                Container(
-                  width: 40, height: 4,
+              GestureDetector(
+                onTap: () => setState(() => _expanded = false),
+                child: Container(
+                  width: 34, height: 34,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(2),
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(10),
                   ),
+                  child: const Icon(Icons.keyboard_arrow_down_rounded,
+                      color: AppColors.primaryColor, size: 20),
                 ),
-
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(phaseIcon, size: 12, color: Colors.white),
-                    const SizedBox(width: 5),
-                    Text(phaseLabel, style: const TextStyle(
-                      fontFamily: 'Satoshi', fontWeight: FontWeight.w700,
-                      fontSize: 11, color: Colors.white,
-                    )),
-                  ]),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: btnColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              ]),
-
-              const SizedBox(height: 14),
-
-              Row(children: [
-
-                Container(
-                  width: 52, height: 52,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
-                  ),
-                  child: Center(child: Text(initial, style: const TextStyle(
-                      fontFamily: 'Satoshi', fontWeight: FontWeight.w800,
-                      fontSize: 20, color: Colors.white))),
-                ),
-                const SizedBox(width: 12),
-                Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(passengerName, style: const TextStyle(
-                        fontFamily: 'Satoshi', fontWeight: FontWeight.w800,
-                        fontSize: 16, color: Colors.white)),
-                    const SizedBox(height: 3),
-                    Text(phaseSub, maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontFamily: 'Satoshi', fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.7))),
-                  ],
-                )),
-                if (ds.argo != null) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF22C55E).withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.4)),
-                    ),
-                    child: Text(_idrFmt.format(ds.argo!.fare),
-                        style: const TextStyle(fontFamily: 'Satoshi',
-                            fontWeight: FontWeight.w800, fontSize: 13,
-                            color: Color(0xFF4ADE80))),
-                  ),
-                ],
-              ]),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(phaseIcon, size: 12, color: btnColor),
+                  const SizedBox(width: 5),
+                  Text(phaseLabel, style: TextStyle(
+                    fontFamily: 'Satoshi', fontWeight: FontWeight.w700,
+                    fontSize: 11, color: btnColor,
+                  )),
+                ]),
+              ),
+              const SizedBox(width: 34),
             ],
           ),
         ),
+        const SizedBox(height: 4),
 
-        Padding(
-          padding: EdgeInsets.fromLTRB(20, 14, 20, 16 + bottomPad),
-          child: Column(
+        TripTrackingCard(
+          idLabel: rideId != null ? '#Order: $rideId' : '#Order: -',
+          onCopyId: rideId == null
+              ? null
+              : () {
+                  Clipboard.setData(ClipboardData(text: rideId));
+                  LungoSnackbar.success(context, 'ID disalin');
+                },
+          title: phaseLabel,
+          originText: ds.activeTrip?.originAddress ?? 'Titik penjemputan',
+          destText: ds.activeTrip?.destinationAddress ?? 'Tujuan',
+          statusText: statusText,
+          statusColor: statusColor,
+          metaText: distToDestM != null
+              ? '${(distToDestM / 1000).toStringAsFixed(1)} km'
+              : null,
+          contactName: passengerName,
+          contactFallbackIcon: Icons.person_rounded,
+          onCallTap: null,
+          timelineSteps: _timelineSteps(isAtPickup, isOnTrip),
+          footer: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-
-              _TripPhaseSteps(isNavigating: isNavigating, isAtPickup: isAtPickup, isOnTrip: isOnTrip),
-              const SizedBox(height: 12),
-
-              if (ds.activeTrip != null) ...[
-                _TripRouteCard(
-                  originAddress: ds.activeTrip!.originAddress ?? 'Titik penjemputan',
-                  destinationAddress: ds.activeTrip!.destinationAddress ?? 'Tujuan',
-                ),
-                const SizedBox(height: 10),
-              ],
 
               if (isOnTrip && ds.argo != null) ...[
                 _DigitalMeter(argo: ds.argo!),

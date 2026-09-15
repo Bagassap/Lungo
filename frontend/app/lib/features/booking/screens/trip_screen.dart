@@ -15,9 +15,13 @@ import '../../../core/network/api_client.dart';
 import '../../../core/services/here_service.dart';
 import '../../../core/storage/secure_storage.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/lungo_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../passenger/providers/chat_provider.dart';
 import '../../passenger/screens/passenger_chat_screen.dart';
+import '../../shared/widgets/trip/map_pin_marker.dart';
+import '../../shared/widgets/trip/tracking_timeline.dart';
+import '../../shared/widgets/trip/trip_tracking_card.dart';
 import '../providers/booking_provider.dart';
 
 enum _TripPhase { accepted, pickup, ongoing }
@@ -74,6 +78,11 @@ class _TripScreenState extends ConsumerState<TripScreen>
   DateTime? _lastDriverUpdate;
   LatLng? _lastRouteFetchPos;
 
+  DateTime? _tsAccepted;
+  DateTime? _tsPickup;
+  DateTime? _tsOngoing;
+  DateTime? _tsDone;
+
   _TripPhase _phase = _TripPhase.accepted;
   int _elapsedSeconds = 0;
   double _currentFare = 14500;
@@ -114,8 +123,10 @@ class _TripScreenState extends ConsumerState<TripScreen>
       _driverPos   = LatLng(args.driverLat, args.driverLng);
       _destination = LatLng(args.destLat, args.destLng);
 
+      _tsAccepted ??= DateTime.now();
       if (args.initialStatus == 'ONGOING') {
         _phase = _TripPhase.ongoing;
+        _tsOngoing ??= DateTime.now();
         _timerStarted = true;
         _startLocalTimer();
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -152,6 +163,7 @@ class _TripScreenState extends ConsumerState<TripScreen>
           final fare = num.tryParse(m['farePassenger']?.toString() ?? '')?.toDouble();
           if (dist != null && mounted) setState(() => _distanceKm = dist);
           if (fare != null && mounted) setState(() => _currentFare = fare);
+          _tsDone ??= DateTime.now();
           _showTripCompleteSheet();
         }
       } catch (_) {}
@@ -200,10 +212,14 @@ class _TripScreenState extends ConsumerState<TripScreen>
       final map = Map<String, dynamic>.from(data as Map);
       final status = map['status'] as String? ?? '';
       if (status == 'PICKUP' && _phase == _TripPhase.accepted) {
-        setState(() => _phase = _TripPhase.pickup);
+        setState(() {
+          _phase = _TripPhase.pickup;
+          _tsPickup ??= DateTime.now();
+        });
       } else if (status == 'ONGOING' && _phase != _TripPhase.ongoing) {
         setState(() {
           _phase = _TripPhase.ongoing;
+          _tsOngoing ??= DateTime.now();
           _currentFare = 14500;
           _distanceKm = 0;
         });
@@ -217,6 +233,7 @@ class _TripScreenState extends ConsumerState<TripScreen>
         final fare = num.tryParse(map['finalFare']?.toString() ?? '')?.toDouble();
         if (dist != null) setState(() => _distanceKm = dist);
         if (fare != null) setState(() => _currentFare = fare);
+        _tsDone ??= DateTime.now();
         _showTripCompleteSheet();
       }
     });
@@ -286,6 +303,7 @@ class _TripScreenState extends ConsumerState<TripScreen>
       setState(() {
         _distanceKm  = num.tryParse(m['distanceKm']?.toString() ?? '')?.toDouble() ?? _distanceKm;
         _currentFare = num.tryParse(m['finalFare']?.toString() ?? '')?.toDouble() ?? _currentFare;
+        _tsDone ??= DateTime.now();
       });
       _showTripCompleteSheet();
     });
@@ -404,6 +422,7 @@ class _TripScreenState extends ConsumerState<TripScreen>
   Future<void> _showTripCompleteSheet() async {
     if (_tripCompleted) return;
     _tripCompleted = true;
+    _tsDone ??= DateTime.now();
     _localTimer?.cancel();
     if (_rideId.isNotEmpty) {
       _socket?.emit('leaveRide', {'rideId': _rideId});
@@ -434,9 +453,21 @@ class _TripScreenState extends ConsumerState<TripScreen>
     );
   }
 
+  List<TrackingStep> get _timelineSteps {
+    final atPickup = _phase == _TripPhase.pickup || _phase == _TripPhase.ongoing;
+    final isOngoingPhase = _phase == _TripPhase.ongoing;
+    return [
+      const TrackingStep(label: 'Pesanan Dibuat', done: true),
+      const TrackingStep(label: 'Driver Diterima', done: true),
+      const TrackingStep(label: 'Driver Menuju Lokasi', done: true),
+      TrackingStep(label: 'Penjemputan', timestamp: _tsPickup, done: atPickup),
+      TrackingStep(label: 'Dalam Perjalanan', timestamp: _tsOngoing, done: isOngoingPhase),
+      TrackingStep(label: 'Selesai', timestamp: _tsDone, done: _tripCompleted),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
-    final initial = _driverName.isNotEmpty ? _driverName[0].toUpperCase() : 'D';
     final isOngoing = _phase == _TripPhase.ongoing;
     final remainingRoute = _trimRoute(_routePoints, _driverPos);
 
@@ -499,44 +530,19 @@ class _TripScreenState extends ConsumerState<TripScreen>
                   Marker(
                     point: _driverPos,
                     width: 48, height: 48,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF0540F2), Color(0xFF056CF2)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primaryColor.withValues(alpha: 0.45),
-                            blurRadius: 14,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.electric_moped_rounded,
-                          color: Colors.white, size: 24),
+                    child: const MapPinMarker(
+                      icon: Icons.electric_moped_rounded,
+                      fillColor: AppColors.primaryColor,
                     ),
                   ),
                   Marker(
                     point: _destination,
                     width: 48, height: 48,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.accentColor,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                            color: AppColors.primaryColor, width: 3),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.accentColor.withValues(alpha: 0.5),
-                            blurRadius: 10,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.flag_rounded,
-                          color: AppColors.primaryDark, size: 22),
+                    child: const MapPinMarker(
+                      icon: Icons.flag_rounded,
+                      fillColor: AppColors.accentColor,
+                      borderColor: AppColors.primaryColor,
+                      iconColor: AppColors.primaryDark,
                     ),
                   ),
                 ]),
@@ -613,15 +619,6 @@ class _TripScreenState extends ConsumerState<TripScreen>
               ),
             ),
 
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: isOngoing
-                  ? _buildLiveMeter()
-                  : _buildPhaseBanner(),
-            ),
-          ),
-
           if (_userInteracted)
             Positioned(
               bottom: 230, right: 16,
@@ -650,7 +647,7 @@ class _TripScreenState extends ConsumerState<TripScreen>
 
           Positioned(
             bottom: 0, left: 0, right: 0,
-            child: _buildBottomCard(initial),
+            child: _buildBottomCard(),
           ),
         ],
       ),
@@ -753,258 +750,72 @@ class _TripScreenState extends ConsumerState<TripScreen>
     );
   }
 
-  Widget _buildBottomCard(String initial) => Container(
-    decoration: const BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      boxShadow: [
-        BoxShadow(
-            color: Color(0x330540F2),
-            blurRadius: 32,
-            offset: Offset(0, -8)),
-      ],
-    ),
-    padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Center(
-          child: Container(
-            width: 36, height: 4,
-            margin: const EdgeInsets.only(bottom: 14),
-            decoration: BoxDecoration(
-              color: AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ),
-
-        if (_phase != _TripPhase.ongoing) ...[
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: (_phase == _TripPhase.pickup
-                      ? AppColors.online
-                      : AppColors.primaryColor)
-                  .withValues(alpha: 0.09),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: (_phase == _TripPhase.pickup
-                        ? AppColors.online
-                        : AppColors.primaryColor)
-                    .withValues(alpha: 0.2),
-              ),
-            ),
-            child: Row(children: [
-              Container(
-                width: 36, height: 36,
-                decoration: BoxDecoration(
-                  color: (_phase == _TripPhase.pickup
-                          ? AppColors.online
-                          : AppColors.primaryColor)
-                      .withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  _phase == _TripPhase.pickup
-                      ? Icons.person_pin_circle_rounded
-                      : Icons.navigation_rounded,
-                  color: _phase == _TripPhase.pickup
-                      ? AppColors.online
-                      : AppColors.primaryColor,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _phase == _TripPhase.pickup
-                          ? 'Driver Sudah Tiba'
-                          : 'Driver Dalam Perjalanan',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontWeight: FontWeight.w700, fontSize: 13,
-                        color: _phase == _TripPhase.pickup
-                            ? AppColors.online
-                            : AppColors.primaryColor,
-                      ),
-                    ),
-                    Text(
-                      _phase == _TripPhase.pickup
-                          ? 'Silakan naik ke kendaraan'
-                          : 'Menuju titik penjemputan Anda',
-                      style: GoogleFonts.plusJakartaSans(
-                          fontSize: 11, color: AppColors.textSecondary),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(
-                width: 18, height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    (_phase == _TripPhase.pickup
-                            ? AppColors.online
-                            : AppColors.primaryColor)
-                        .withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
-            ]),
-          ),
-          const SizedBox(height: 14),
-        ],
-
-        Row(children: [
-          Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0540F2), Color(0xFF056CF2)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(initial, style: GoogleFonts.plusJakartaSans(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 16,
-                  color: Colors.white)),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(_driverName, style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w800, fontSize: 14,
-                    color: AppColors.primaryDark)),
-                Text(_driverPlate, style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11, color: AppColors.textSecondary)),
-              ],
-            ),
-          ),
+  Widget _buildBottomCard() {
+    final isOngoing = _phase == _TripPhase.ongoing;
+    return TripTrackingCard(
+      idLabel: _rideId.isNotEmpty ? '#Order: $_rideId' : '#Order: -',
+      onCopyId: _rideId.isEmpty
+          ? null
+          : () {
+              Clipboard.setData(ClipboardData(text: _rideId));
+              LungoSnackbar.success(context, 'ID disalin');
+            },
+      title: switch (_phase) {
+        _TripPhase.accepted => 'Driver Menuju Lokasimu',
+        _TripPhase.pickup => 'Driver Sudah Tiba',
+        _TripPhase.ongoing => 'Dalam Perjalanan',
+      },
+      originText: 'Lokasi kamu',
+      destText: 'Tujuan',
+      statusText: switch (_phase) {
+        _TripPhase.accepted => 'Menuju',
+        _TripPhase.pickup => 'Tiba',
+        _TripPhase.ongoing => 'Berjalan',
+      },
+      statusColor: switch (_phase) {
+        _TripPhase.accepted => AppColors.secondaryColor,
+        _TripPhase.pickup => AppColors.online,
+        _TripPhase.ongoing => AppColors.primaryColor,
+      },
+      metaText: isOngoing ? '${_distanceKm.toStringAsFixed(1)} km' : null,
+      contactName: _driverPlate.isNotEmpty && _driverPlate != '-'
+          ? '${_driverName.isNotEmpty ? _driverName : 'Driver'} • $_driverPlate'
+          : (_driverName.isNotEmpty ? _driverName : 'Driver'),
+      contactFallbackIcon: Icons.person_rounded,
+      onCallTap: _driverPhone.isNotEmpty ? () => _makeCall(_driverPhone) : null,
+      timelineSteps: _timelineSteps,
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          isOngoing ? _buildLiveMeter() : _buildPhaseBanner(),
+          const SizedBox(height: 12),
           Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
-
-              GestureDetector(
-                onTap: _openChat,
-                child: Container(
-                  width: 36, height: 36,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                        color: AppColors.primaryColor.withValues(alpha: 0.3)),
-                  ),
-                  child: const Icon(Icons.chat_bubble_rounded,
-                      color: AppColors.primaryColor, size: 17),
+              Expanded(
+                child: _ActionButton(
+                  icon: Icons.chat_bubble_rounded,
+                  label: 'Chat',
+                  color: AppColors.primaryColor,
+                  onTap: _openChat,
                 ),
               ),
-              if (_driverPhone.isNotEmpty) ...[
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () => _makeCall(_driverPhone),
-                  child: Container(
-                    width: 36, height: 36,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF22C55E).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: const Color(0xFF22C55E).withValues(alpha: 0.3)),
-                    ),
-                    child: const Icon(Icons.phone_rounded,
-                        color: Color(0xFF22C55E), size: 17),
-                  ),
-                ),
-              ],
-
-              if (_phase == _TripPhase.ongoing) ...[
-                const SizedBox(width: 8),
-                AnimatedBuilder(
-                  animation: _fareAnim,
-                  builder: (_, _) => Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: AppColors.online.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      _fmt.format(_currentFare),
-                      style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.w700, fontSize: 13,
-                          color: AppColors.online),
-                    ),
+              if (isOngoing) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _ActionButton(
+                    icon: Icons.navigation_rounded,
+                    label: 'Buka Maps',
+                    color: AppColors.online,
+                    onTap: _openGoogleMaps,
                   ),
                 ),
               ],
             ],
           ),
-        ]),
-
-        if (_phase == _TripPhase.ongoing) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF04198C), Color(0xFF0540F2)],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _meterItem(Icons.timer_rounded, _elapsedTime, 'Waktu'),
-                Container(width: 1, height: 28, color: Colors.white24),
-                _meterItem(Icons.route_rounded,
-                    '${_distanceKm.toStringAsFixed(1)} km', 'Jarak'),
-                Container(width: 1, height: 28, color: Colors.white24),
-                AnimatedBuilder(
-                  animation: _fareAnim,
-                  builder: (_, _) => _meterItem(
-                    Icons.payments_rounded,
-                    _fmt.format(_currentFare),
-                    'Argo',
-                    highlight: true,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _openGoogleMaps,
-              icon: const Icon(Icons.navigation_rounded, size: 16),
-              label: const Text(
-                'Buka Google Maps',
-                style: TextStyle(fontFamily: 'Satoshi', fontWeight: FontWeight.w700, fontSize: 14),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0540F2),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 0,
-              ),
-            ),
-          ),
         ],
-      ],
-    ),
-  );
+      ),
+    );
+  }
 
   Widget _meterItem(IconData icon, String value, String label,
       {bool highlight = false}) =>
@@ -1031,6 +842,47 @@ class _TripScreenState extends ConsumerState<TripScreen>
               style: GoogleFonts.plusJakartaSans(
                   fontSize: 9, color: Colors.white54)),
         ],
+      );
+}
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 18),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
       );
 }
 
