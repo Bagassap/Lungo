@@ -9,7 +9,7 @@ import * as fs from 'fs';
 import helmet from 'helmet';
 
 const hpp = require('hpp') as () => any;
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './filters/all-exceptions.filter';
 
@@ -67,7 +67,7 @@ async function bootstrap() {
   app.use(hpp());
 
   app.use((req: any, res: any, next: any) => {
-    req['requestId'] = uuidv4();
+    req['requestId'] = randomUUID();
     res.setHeader('X-Request-ID', req['requestId']);
     next();
   });

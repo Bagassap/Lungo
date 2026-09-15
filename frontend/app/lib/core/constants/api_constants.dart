@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 
 class ApiConstants {
   static String get baseUrl => kReleaseMode
-      ? 'http://187.77.121.102'
+      ? 'http://36.68.55.206'
       : (Platform.isAndroid ? 'http://10.0.2.2:3000' : 'http://localhost:3000');
 
   static String get wsUrl => baseUrl;
