@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Backend VPS belum pakai HTTPS, jadi cleartext HTTP diizinkan khusus untuk IP ini. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">36.68.55.206</domain>
+    </domain-config>
+</network-security-config>

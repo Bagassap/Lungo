@@ -1,10 +1,5 @@
-﻿import 'dart:io';
-import 'package:flutter/foundation.dart';
-
-class ApiConstants {
-  static String get baseUrl => kReleaseMode
-      ? 'http://36.68.55.206'
-      : (Platform.isAndroid ? 'http://10.0.2.2:3000' : 'http://localhost:3000');
+﻿class ApiConstants {
+  static String get baseUrl => 'http://36.68.55.206';
 
   static String get wsUrl => baseUrl;
 
