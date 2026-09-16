@@ -1,5 +1,5 @@
 ﻿class ApiConstants {
-  static String get baseUrl => 'http://36.68.55.206';
+  static String get baseUrl => 'https://acc-grand-bra-tennessee.trycloudflare.com';
 
   static String get wsUrl => baseUrl;
 
